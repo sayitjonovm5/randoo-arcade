@@ -64,15 +64,29 @@
 
           <!-- Logged In State: User Pill and Dropdown -->
           <button id="authBtn" class="action-btn user-btn logged-in hidden" title="Account Settings" aria-label="Account">
-            <span id="authIcon">👾</span>
+            <div class="header-avatar-badge" id="headerAvatarBadge">
+              <img id="headerAvatarImg" class="header-avatar-img hidden" src="" alt="User Avatar">
+              <span id="authIcon" class="header-avatar-icon">👾</span>
+            </div>
             <span class="btn-text" id="authBtnText">Player</span>
+            <span class="header-dropdown-arrow" aria-hidden="true">▾</span>
           </button>
           <div id="userDropdown" class="user-dropdown hidden">
             <div class="user-dropdown-header">
-              <span class="user-avatar-badge" id="dropdownAvatar">👾</span>
+              <div class="dropdown-avatar-wrap" id="dropdownAvatarWrap" title="Click to change profile photo">
+                <img id="dropdownAvatarImg" class="dropdown-avatar-img hidden" src="" alt="Profile Photo">
+                <span class="user-avatar-badge" id="dropdownAvatar">👾</span>
+                <label for="changeAvatarInput" class="avatar-edit-overlay" title="Upload new photo" aria-label="Change photo">
+                  <span>📷</span>
+                </label>
+                <input type="file" id="changeAvatarInput" accept="image/png, image/jpeg, image/webp, image/gif" class="hidden-file-input">
+              </div>
               <div class="user-dropdown-info">
                 <span class="dropdown-username" id="dropdownUsername">Player</span>
                 <span class="dropdown-email" id="dropdownEmail">user@domain.com</span>
+                <button type="button" id="triggerChangePhotoBtn" class="change-photo-btn">
+                  <span>📷</span> Change Photo
+                </button>
               </div>
             </div>
             <div class="user-dropdown-divider"></div>
@@ -390,7 +404,14 @@
               <!-- Dynamically populated from /api/leaderboard -->
             </tbody>
           </table>
-          <div id="leaderboardEmpty" class="lb-empty hidden">No player records found yet. Play a game to claim your spot!</div>
+          <div id="leaderboardEmpty" class="lb-empty hidden">
+            <div class="lb-empty-badge">🏆</div>
+            <h3 class="lb-empty-title">Leaderboard is Waiting for Champions!</h3>
+            <p class="lb-empty-subtitle">Real users will join soon! Create your account, upload your profile photo, and play any game to claim the #1 spot.</p>
+            <button type="button" id="emptyLbJoinBtn" class="action-btn register-btn lb-empty-cta">
+              <span>✨</span> Create Account &amp; Claim Spot
+            </button>
+          </div>
           <div id="leaderboardLoading" class="lb-loading hidden">Loading encrypted rankings...</div>
         </div>
       </div>
@@ -466,6 +487,27 @@
             <input type="text" id="authUsername" placeholder="e.g. CyberKnight" autocomplete="username" maxlength="24">
           </div>
           <span class="field-hint">Your public gamer handle on the leaderboard</span>
+        </div>
+
+        <!-- Profile Photo Upload Field (Only for Register) -->
+        <div class="form-group" id="avatarGroup" style="display: none;">
+          <label class="form-label">Profile Photo (Optional)</label>
+          <div class="avatar-upload-row">
+            <div class="avatar-preview-box" id="regAvatarPreviewBox">
+              <img id="regAvatarImg" class="avatar-preview-img hidden" src="" alt="Avatar Preview">
+              <span id="regAvatarPlaceholder" class="avatar-preview-icon">👤</span>
+            </div>
+            <div class="avatar-upload-info">
+              <div class="avatar-upload-btn-row">
+                <label for="regAvatarInput" class="btn-upload-avatar" role="button" tabindex="0">
+                  <span>📁 Choose Image</span>
+                </label>
+                <input type="file" id="regAvatarInput" accept="image/png, image/jpeg, image/webp, image/gif" class="hidden-file-input">
+                <button type="button" id="removeAvatarBtn" class="btn-remove-avatar hidden">Remove</button>
+              </div>
+              <span class="field-hint">JPG, PNG, or WebP. Auto-centered square.</span>
+            </div>
+          </div>
         </div>
 
         <!-- Email Field (For both Login & Register) -->

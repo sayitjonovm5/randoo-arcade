@@ -273,7 +273,20 @@ class ClientEncryptedVault {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const data = this.decrypt(raw);
-        if (data && data.users) return data;
+        if (data && data.users) {
+          // Purge any dummy bots from older versions
+          const botEmails = ['neo@arcade.net', 'cyber@arcade.net', 'ninja@arcade.net', 'speed@arcade.net', 'viper@arcade.net'];
+          const botNames = ['NeoGamer', 'CyberPixel', 'PixelNinja', 'QuantumSpeed', 'RetroViper', 'ArcadeMaster', 'ShadowStrike', 'LuckyRoller'];
+          let changed = false;
+          for (const [key, u] of Object.entries(data.users)) {
+            if (botEmails.includes(key) || (u.email && botEmails.includes(u.email)) || botNames.includes(u.username)) {
+              delete data.users[key];
+              changed = true;
+            }
+          }
+          if (changed) this.save(data);
+          return data;
+        }
       }
     } catch (e) {}
     return this.seedInitial();
@@ -288,48 +301,7 @@ class ClientEncryptedVault {
 
   seedInitial() {
     const initial = {
-      users: {
-        'neo@arcade.net': {
-          id: 'champ_1',
-          username: 'NeoGamer',
-          email: 'neo@arcade.net',
-          passwordHash: this.hashPassword('NeoPass123!', 'salt_1'),
-          salt: 'salt_1',
-          stats: { totalWins: 48, totalPlayed: 62, bestReactionMs: 194, games: { rps: { played: 25, wins: 20 }, rtt: { played: 15, bestMs: 194 } } }
-        },
-        'cyber@arcade.net': {
-          id: 'champ_2',
-          username: 'CyberPixel',
-          email: 'cyber@arcade.net',
-          passwordHash: this.hashPassword('CyberPass123!', 'salt_2'),
-          salt: 'salt_2',
-          stats: { totalWins: 39, totalPlayed: 55, bestReactionMs: 215, games: { ttt: { played: 20, wins: 15 }, rtt: { played: 10, bestMs: 215 } } }
-        },
-        'ninja@arcade.net': {
-          id: 'champ_3',
-          username: 'PixelNinja',
-          email: 'ninja@arcade.net',
-          passwordHash: this.hashPassword('NinjaPass123!', 'salt_3'),
-          salt: 'salt_3',
-          stats: { totalWins: 31, totalPlayed: 42, bestReactionMs: 240, games: { guess: { played: 18, wins: 12 }, rtt: { played: 8, bestMs: 240 } } }
-        },
-        'speed@arcade.net': {
-          id: 'champ_4',
-          username: 'QuantumSpeed',
-          email: 'speed@arcade.net',
-          passwordHash: this.hashPassword('SpeedPass123!', 'salt_4'),
-          salt: 'salt_4',
-          stats: { totalWins: 26, totalPlayed: 35, bestReactionMs: 178, games: { rtt: { played: 20, bestMs: 178 } } }
-        },
-        'viper@arcade.net': {
-          id: 'champ_5',
-          username: 'RetroViper',
-          email: 'viper@arcade.net',
-          passwordHash: this.hashPassword('ViperPass123!', 'salt_5'),
-          salt: 'salt_5',
-          stats: { totalWins: 19, totalPlayed: 30, bestReactionMs: 265, games: { dice: { played: 14, wins: 9 }, rtt: { played: 5, bestMs: 265 } } }
-        }
-      }
+      users: {}
     };
     this.save(initial);
     return initial;
@@ -339,7 +311,7 @@ class ClientEncryptedVault {
     this.load();
   }
 
-  register(username, email, password) {
+  register(username, email, password, avatar = null) {
     const data = this.load();
     const normEmail = email.toLowerCase().trim();
     const normUser = username.trim();
@@ -359,6 +331,7 @@ class ClientEncryptedVault {
       id: 'user_' + Math.random().toString(36).slice(2, 12),
       username: normUser,
       email: normEmail,
+      avatar: (avatar && typeof avatar === 'string' && avatar.startsWith('data:image/')) ? avatar : null,
       passwordHash,
       salt,
       stats: {
@@ -375,6 +348,19 @@ class ClientEncryptedVault {
 
     const token = 'token_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     return { user: this.sanitize(user), token };
+  }
+
+  updateAvatar(userId, avatar) {
+    if (!userId) return null;
+    const data = this.load();
+    for (const u of Object.values(data.users)) {
+      if (u.id === userId) {
+        u.avatar = (avatar && typeof avatar === 'string' && avatar.startsWith('data:image/')) ? avatar : null;
+        this.save(data);
+        return this.sanitize(u);
+      }
+    }
+    return null;
   }
 
   login(email, password) {
@@ -436,6 +422,7 @@ class ClientEncryptedVault {
       return {
         id: u.id,
         username: u.username,
+        avatar: u.avatar || null,
         totalWins: wins,
         totalPlayed: played,
         bestReactionMs: u.stats?.bestReactionMs || null,
@@ -509,6 +496,43 @@ class ClientEncryptedVault {
   }
 }
 
+// Image Compressor & Square Cropper for Avatars
+function compressImageFile(file, maxWidth = 160, maxHeight = 160, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      return reject(new Error('Please select a valid image file (JPG, PNG, WebP).'));
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return reject(new Error('Selected image is too large. Max 10MB allowed.'));
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Invalid image format.'));
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2;
+        const sy = (img.height - minDim) / 2;
+
+        const outSize = Math.min(maxWidth, minDim);
+        canvas.width = outSize;
+        canvas.height = outSize;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, outSize, outSize);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // Main Hub Controller
 document.addEventListener('DOMContentLoaded', () => {
   const audio = new ArcadeAudio();
@@ -528,19 +552,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const soundIcon = document.getElementById('soundIcon');
   const resetStatsBtn = document.getElementById('resetStatsBtn');
 
-  // User Auth Elements
+  // User Auth & Avatar Elements
   const guestAuthActions = document.getElementById('guestAuthActions');
   const loginBtn = document.getElementById('loginBtn');
   const registerBtn = document.getElementById('registerBtn');
   const authBtn = document.getElementById('authBtn');
   const authBtnText = document.getElementById('authBtnText');
+  const headerAvatarImg = document.getElementById('headerAvatarImg');
+  const authIcon = document.getElementById('authIcon');
   const userDropdown = document.getElementById('userDropdown');
+  const dropdownAvatarWrap = document.getElementById('dropdownAvatarWrap');
+  const dropdownAvatarImg = document.getElementById('dropdownAvatarImg');
+  const dropdownAvatar = document.getElementById('dropdownAvatar');
   const dropdownUsername = document.getElementById('dropdownUsername');
   const dropdownEmail = document.getElementById('dropdownEmail');
+  const changeAvatarInput = document.getElementById('changeAvatarInput');
+  const triggerChangePhotoBtn = document.getElementById('triggerChangePhotoBtn');
   const dropStatWins = document.getElementById('dropStatWins');
   const dropStatPlayed = document.getElementById('dropStatPlayed');
   const dropStatReflex = document.getElementById('dropStatReflex');
   const logoutBtn = document.getElementById('logoutBtn');
+
+  // Registration Avatar Elements
+  const avatarGroup = document.getElementById('avatarGroup');
+  const regAvatarInput = document.getElementById('regAvatarInput');
+  const regAvatarImg = document.getElementById('regAvatarImg');
+  const regAvatarPlaceholder = document.getElementById('regAvatarPlaceholder');
+  const removeAvatarBtn = document.getElementById('removeAvatarBtn');
+  let selectedRegAvatar = null;
 
   // Stats Display Elements
   const statTotalPlayed = document.getElementById('statTotalPlayed');
@@ -585,6 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const leaderboardBody = document.getElementById('leaderboardBody');
   const leaderboardLoading = document.getElementById('leaderboardLoading');
   const leaderboardEmpty = document.getElementById('leaderboardEmpty');
+  const emptyLbJoinBtn = document.getElementById('emptyLbJoinBtn');
 
   // Cookie Consent Elements
   const cookieBanner = document.getElementById('cookieBanner');
@@ -700,6 +740,36 @@ document.addEventListener('DOMContentLoaded', () => {
       if (dropdownUsername) dropdownUsername.textContent = currentUser.username;
       if (dropdownEmail) dropdownEmail.textContent = currentUser.email;
 
+      // Handle Profile Photo / Avatar
+      if (currentUser.avatar) {
+        if (headerAvatarImg) {
+          headerAvatarImg.src = currentUser.avatar;
+          headerAvatarImg.classList.remove('hidden');
+        }
+        if (authIcon) authIcon.classList.add('hidden');
+
+        if (dropdownAvatarImg) {
+          dropdownAvatarImg.src = currentUser.avatar;
+          dropdownAvatarImg.classList.remove('hidden');
+        }
+        if (dropdownAvatar) dropdownAvatar.classList.add('hidden');
+      } else {
+        if (headerAvatarImg) {
+          headerAvatarImg.src = '';
+          headerAvatarImg.classList.add('hidden');
+        }
+        if (authIcon) authIcon.classList.remove('hidden');
+
+        if (dropdownAvatarImg) {
+          dropdownAvatarImg.src = '';
+          dropdownAvatarImg.classList.add('hidden');
+        }
+        if (dropdownAvatar) {
+          dropdownAvatar.classList.remove('hidden');
+          dropdownAvatar.textContent = currentUser.username ? currentUser.username.charAt(0).toUpperCase() : '👾';
+        }
+      }
+
       const profile = getArcadeProfile();
       if (dropStatWins) dropStatWins.textContent = currentUser.stats?.totalWins || profile.totalWins || 0;
       if (dropStatPlayed) dropStatPlayed.textContent = currentUser.stats?.totalPlayed || profile.totalPlayed || 0;
@@ -711,6 +781,10 @@ document.addEventListener('DOMContentLoaded', () => {
         authBtn.classList.add('hidden');
         authBtn.classList.remove('logged-in');
       }
+      if (headerAvatarImg) headerAvatarImg.classList.add('hidden');
+      if (authIcon) authIcon.classList.remove('hidden');
+      if (dropdownAvatarImg) dropdownAvatarImg.classList.add('hidden');
+      if (dropdownAvatar) dropdownAvatar.classList.remove('hidden');
       if (userDropdown) userDropdown.classList.add('hidden');
     }
   }
@@ -892,6 +966,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Auth Modal Management
+  function clearRegAvatar() {
+    selectedRegAvatar = null;
+    if (regAvatarInput) regAvatarInput.value = '';
+    if (regAvatarImg) {
+      regAvatarImg.src = '';
+      regAvatarImg.classList.add('hidden');
+    }
+    if (regAvatarPlaceholder) regAvatarPlaceholder.classList.remove('hidden');
+    if (removeAvatarBtn) removeAvatarBtn.classList.add('hidden');
+  }
+
   function setAuthMode(mode) {
     authMode = mode;
     if (authErrorMsg) authErrorMsg.classList.add('hidden');
@@ -907,10 +992,12 @@ document.addEventListener('DOMContentLoaded', () => {
         tabRegister.setAttribute('aria-selected', 'false');
       }
       if (usernameGroup) usernameGroup.style.display = 'none';
+      if (avatarGroup) avatarGroup.style.display = 'none';
       if (authUsername) authUsername.removeAttribute('required');
       if (modalTitle) modalTitle.textContent = 'Sign In to Randoo';
       if (modalSubtitle) modalSubtitle.textContent = 'Save your player stats to our encrypted database';
       if (authSubmitText) authSubmitText.textContent = 'Sign In';
+      clearRegAvatar();
     } else {
       if (tabRegister) {
         tabRegister.classList.add('active');
@@ -921,6 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabLogin.setAttribute('aria-selected', 'false');
       }
       if (usernameGroup) usernameGroup.style.display = 'flex';
+      if (avatarGroup) avatarGroup.style.display = 'flex';
       if (authUsername) authUsername.setAttribute('required', 'true');
       if (modalTitle) modalTitle.textContent = 'Create Arcade Account';
       if (modalSubtitle) modalSubtitle.textContent = 'Join the public leaderboard and encrypt your game records';
@@ -943,6 +1031,87 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeAuth() {
     if (authModal) authModal.classList.add('hidden');
+  }
+
+  // Wire Registration Avatar Upload & Preview
+  if (regAvatarInput) {
+    regAvatarInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const dataUrl = await compressImageFile(file, 160, 160, 0.85);
+        selectedRegAvatar = dataUrl;
+        if (regAvatarImg) {
+          regAvatarImg.src = dataUrl;
+          regAvatarImg.classList.remove('hidden');
+        }
+        if (regAvatarPlaceholder) regAvatarPlaceholder.classList.add('hidden');
+        if (removeAvatarBtn) removeAvatarBtn.classList.remove('hidden');
+        audio.playPop();
+      } catch (err) {
+        alert(err.message);
+        clearRegAvatar();
+      }
+    });
+  }
+
+  if (removeAvatarBtn) {
+    removeAvatarBtn.addEventListener('click', () => {
+      audio.playClick();
+      clearRegAvatar();
+    });
+  }
+
+  // Wire Change Profile Photo from User Dropdown
+  if (triggerChangePhotoBtn && changeAvatarInput) {
+    triggerChangePhotoBtn.addEventListener('click', () => {
+      audio.playPop();
+      changeAvatarInput.click();
+    });
+  }
+
+  if (changeAvatarInput) {
+    changeAvatarInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file || !currentUser) return;
+      try {
+        const dataUrl = await compressImageFile(file, 160, 160, 0.85);
+
+        // Update in client vault
+        const updatedLocal = vault.updateAvatar(currentUser.id, dataUrl);
+        if (updatedLocal) {
+          currentUser = updatedLocal;
+          vault.saveSession(currentUser, sessionStorage.getItem('randoo_session_token'));
+        }
+
+        // Sync with backend API
+        try {
+          const res = await apiFetch('/api/avatar', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            credentials: 'include',
+            body: JSON.stringify({ avatar: dataUrl })
+          });
+          if (res && res.ok && res.user) {
+            currentUser = res.user;
+          }
+        } catch (netErr) {}
+
+        updateUserUI();
+        fetchLeaderboard(activeLbSort);
+        audio.playPop();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
+
+  // Wire Empty Leaderboard Join CTA
+  if (emptyLbJoinBtn) {
+    emptyLbJoinBtn.addEventListener('click', () => {
+      audio.playPop();
+      openAuth('register');
+    });
   }
 
   // Wire Header Auth Buttons
@@ -1039,7 +1208,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const endpoint = authMode === 'register' ? '/api/register' : '/api/login';
         const payload = authMode === 'register'
-          ? { username, email, password, allowCookies }
+          ? { username, email, password, avatar: selectedRegAvatar, allowCookies }
           : { email, password, allowCookies };
 
         const data = await apiFetch(endpoint, {
@@ -1059,7 +1228,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!authResult) {
         try {
           if (authMode === 'register') {
-            authResult = vault.register(username, email, password);
+            authResult = vault.register(username, email, password, selectedRegAvatar);
           } else {
             authResult = vault.login(email, password);
           }
@@ -1086,6 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUserUI();
         renderStats();
         fetchLeaderboard(activeLbSort);
+        clearRegAvatar();
 
         setTimeout(() => {
           closeAuth();
@@ -1164,7 +1334,12 @@ document.addEventListener('DOMContentLoaded', () => {
           <td class="col-rank">${rankHtml}</td>
           <td class="col-player">
             <div class="player-cell">
-              <span class="player-avatar">${p.rank === 1 ? '👑' : '👾'}</span>
+              <div class="player-avatar-wrap">
+                ${p.avatar
+                  ? `<img class="player-avatar-img" src="${p.avatar}" alt="${escapeHtml(p.username)}">`
+                  : `<span class="avatar-fallback-initial">${escapeHtml(p.username ? p.username.charAt(0).toUpperCase() : '?')}</span>`
+                }
+              </div>
               <span class="player-name">${escapeHtml(p.username)}</span>
               ${youBadge}
             </div>

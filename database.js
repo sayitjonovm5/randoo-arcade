@@ -32,8 +32,7 @@ class EncryptedArcadeDB {
     if (fs.existsSync(this.dbFilePath)) {
       this.load();
     } else {
-      // Seed initial sample leaderboard players so the public leaderboard is alive on fresh launch
-      this.seedInitialPublicPlayers();
+      // Initialize fresh empty encrypted database - real users only, no bots
       this.save();
     }
   }
@@ -75,57 +74,32 @@ class EncryptedArcadeDB {
       this.data = JSON.parse(plaintext.toString('utf8'));
       if (!this.data.users) this.data.users = [];
       if (!this.data.sessions) this.data.sessions = [];
+
+      // Purge any dummy bots from older versions
+      const botUsernames = ['NeoGamer', 'CyberPixel', 'ArcadeMaster', 'ShadowStrike', 'LuckyRoller', 'PixelNinja', 'QuantumSpeed', 'RetroViper'];
+      const initialCount = this.data.users.length;
+      this.data.users = this.data.users.filter(u => {
+        const isBotEmail = u.email && (u.email.endsWith('@randoo.net') || u.email.endsWith('@arcade.net'));
+        const isBotName = botUsernames.includes(u.username);
+        return !isBotEmail && !isBotName;
+      });
+
+      if (this.data.users.length !== initialCount) {
+        this.save();
+      }
+
       return true;
     } catch (err) {
       console.error('Failed to decrypt database, initializing fresh store:', err.message);
       this.data = { users: [], sessions: [], meta: { createdAt: new Date().toISOString() } };
-      this.seedInitialPublicPlayers();
       this.save();
       return false;
     }
   }
 
-  seedInitialPublicPlayers() {
-    // Add a few friendly community players to leaderboard
-    const sampleBots = [
-      { username: 'NeoGamer', email: 'neogamer@randoo.net', wins: 48, played: 62, bestReaction: 194 },
-      { username: 'CyberPixel', email: 'cyberpixel@randoo.net', wins: 39, played: 55, bestReaction: 215 },
-      { username: 'ArcadeMaster', email: 'arcademaster@randoo.net', wins: 34, played: 42, bestReaction: 228 },
-      { username: 'ShadowStrike', email: 'shadowstrike@randoo.net', wins: 27, played: 38, bestReaction: 242 },
-      { username: 'LuckyRoller', email: 'luckyroller@randoo.net', wins: 22, played: 30, bestReaction: 260 }
-    ];
-
-    sampleBots.forEach(bot => {
-      const salt = crypto.randomBytes(16).toString('hex');
-      const hash = crypto.scryptSync('samplepassword123', salt, 64).toString('hex');
-      this.data.users.push({
-        id: 'user_' + crypto.randomBytes(6).toString('hex'),
-        username: bot.username,
-        email: bot.email,
-        salt,
-        passwordHash: hash,
-        createdAt: new Date(Date.now() - Math.random() * 864000000).toISOString(),
-        lastActive: new Date().toISOString(),
-        stats: {
-          totalPlayed: bot.played,
-          totalWins: bot.wins,
-          bestReactionMs: bot.bestReaction,
-          games: {
-            rps: { played: Math.floor(bot.played * 0.3), wins: Math.floor(bot.wins * 0.35) },
-            ttt: { played: Math.floor(bot.played * 0.25), wins: Math.floor(bot.wins * 0.3) },
-            guess: { played: Math.floor(bot.played * 0.15), wins: Math.floor(bot.wins * 0.15) },
-            dice: { played: Math.floor(bot.played * 0.15), wins: Math.floor(bot.wins * 0.1) },
-            hangman: { played: Math.floor(bot.played * 0.15), wins: Math.floor(bot.wins * 0.1) },
-            rtt: { played: 12, bestMs: bot.bestReaction }
-          }
-        }
-      });
-    });
-  }
-
   // --- USER AUTHENTICATION LOGIC ---
 
-  register(username, email, password) {
+  register(username, email, password, avatar = null) {
     if (!username || typeof username !== 'string' || username.trim().length < 2) {
       throw new Error('Username must be at least 2 characters long.');
     }
@@ -160,6 +134,7 @@ class EncryptedArcadeDB {
       id: 'user_' + crypto.randomBytes(8).toString('hex'),
       username: cleanUsername,
       email: cleanEmail,
+      avatar: (typeof avatar === 'string' && avatar.startsWith('data:image/')) ? avatar : null,
       salt,
       passwordHash,
       createdAt: new Date().toISOString(),
@@ -184,6 +159,23 @@ class EncryptedArcadeDB {
     this.save();
 
     return { user: this.sanitizeUser(newUser), token: sessionToken };
+  }
+
+  updateAvatar(userId, avatar) {
+    const user = this.data.users.find(u => u.id === userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    if (avatar && typeof avatar === 'string' && avatar.startsWith('data:image/')) {
+      user.avatar = avatar;
+    } else {
+      user.avatar = null;
+    }
+
+    user.lastActive = new Date().toISOString();
+    this.save();
+    return this.sanitizeUser(user);
   }
 
   login(identifier, password) {
@@ -248,6 +240,7 @@ class EncryptedArcadeDB {
       id: user.id,
       username: user.username,
       email: user.email,
+      avatar: user.avatar || null,
       createdAt: user.createdAt,
       lastActive: user.lastActive,
       stats: user.stats
@@ -308,6 +301,7 @@ class EncryptedArcadeDB {
       return {
         id: u.id,
         username: u.username,
+        avatar: u.avatar || null,
         totalWins: wins,
         totalPlayed: completed,
         bestReactionMs: stats.bestReactionMs || null,

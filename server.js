@@ -58,7 +58,7 @@ function parseJsonBody(req) {
     let body = '';
     req.on('data', chunk => {
       body += chunk.toString();
-      if (body.length > 1e6) { // 1MB max payload protection
+      if (body.length > 2e6) { // 2MB max payload protection (comfortably handles base64 avatar images)
         req.destroy();
         reject(new Error('Payload too large'));
       }
@@ -107,8 +107,8 @@ const server = http.createServer(async (req, res) => {
   // 1. POST /api/register
   if (req.method === 'POST' && pathname === '/api/register') {
     try {
-      const { username, email, password, allowCookies } = await parseJsonBody(req);
-      const { user, token } = db.register(username, email, password);
+      const { username, email, password, avatar, allowCookies } = await parseJsonBody(req);
+      const { user, token } = db.register(username, email, password, avatar);
 
       const headers = {};
       if (allowCookies) {
@@ -121,7 +121,24 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 2. POST /api/login
+  // 2. POST /api/avatar (Upload / Update User Profile Photo)
+  if (req.method === 'POST' && pathname === '/api/avatar') {
+    try {
+      const token = getSessionToken(req);
+      const user = token ? db.validateSession(token) : null;
+      if (!user) {
+        return sendJson(res, 401, { ok: false, error: 'Unauthorized. Please sign in.' });
+      }
+
+      const { avatar } = await parseJsonBody(req);
+      const updatedUser = db.updateAvatar(user.id, avatar);
+      return sendJson(res, 200, { ok: true, user: updatedUser });
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: err.message });
+    }
+  }
+
+  // 3. POST /api/login
   if (req.method === 'POST' && pathname === '/api/login') {
     try {
       const { email, password, allowCookies } = await parseJsonBody(req);
