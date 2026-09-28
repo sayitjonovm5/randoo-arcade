@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradGuess" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a101d" />
+      <stop offset="100%" stop-color="#1e1808" />
+    </linearGradient>
+    <linearGradient id="thermalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4facfe" />
+      <stop offset="50%" stop-color="#ffb300" />
+      <stop offset="100%" stop-color="#ff3366" />
+    </linearGradient>
+    <filter id="glowAmber" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <rect width="640" height="360" fill="url(#bgGradGuess)" />
+
+  <!-- Mystery Box -->
+  <g transform="translate(320, 140)">
+    <rect x="-48" y="-48" width="96" height="96" rx="20" fill="#1e293b" stroke="#ffb300" stroke-width="3" filter="url(#glowAmber)" />
+    <text x="0" y="16" font-family="'Space Grotesk', sans-serif" font-size="52" font-weight="800" fill="#ffb300" text-anchor="middle">?</text>
+  </g>
+
+  <!-- Number Range Track -->
+  <g transform="translate(320, 260)">
+    <!-- Track background -->
+    <rect x="-200" y="-8" width="400" height="16" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" />
+    <!-- Active Thermal Zone -->
+    <rect x="-100" y="-8" width="220" height="16" rx="8" fill="url(#thermalGrad)" />
+    <!-- Marker -->
+    <circle cx="10" cy="0" r="14" fill="#ffffff" stroke="#ffb300" stroke-width="4" filter="url(#glowAmber)" />
+    <!-- Range Labels -->
+    <text x="-200" y="32" font-family="'Outfit', sans-serif" font-size="16" font-weight="700" fill="#94a3b8" text-anchor="middle">1</text>
+    <text x="0" y="32" font-family="'Outfit', sans-serif" font-size="16" font-weight="700" fill="#ffb300" text-anchor="middle">Target</text>
+    <text x="200" y="32" font-family="'Outfit', sans-serif" font-size="16" font-weight="700" fill="#94a3b8" text-anchor="middle">100</text>
+  </g>
+
+  <!-- Top Badge -->
+  <g transform="translate(320, 48)">
+    <rect x="-70" y="-18" width="140" height="36" rx="18" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+    <text x="0" y="6" font-family="'Space Grotesk', sans-serif" font-size="14" font-weight="800" fill="#ffb300" text-anchor="middle" letter-spacing="2">HOT &amp; COLD</text>
+  </g>
+</svg>

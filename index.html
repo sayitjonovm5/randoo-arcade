@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Randoo Arcade — Modern Mini-Games Collection</title>
+  <meta name="description" content="Play remastered arcade mini-games with smart AI, modern physics, and responsive design across all devices.">
+  <link rel="shortcut icon" href="icon.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Animated Background Canvas -->
+  <canvas id="arcadeBgCanvas" class="arcade-bg-canvas" aria-hidden="true"></canvas>
+  <div class="stars-bg" aria-hidden="true"></div>
+
+  <!-- Header / Navigation -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="brand">
+        <div class="brand-icon">
+          <img src="icon.png" alt="Randoo Logo" class="brand-logo">
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">RANDOO</span>
+          <span class="brand-badge">ARCADE v2.0</span>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <!-- Theme Toggle Button (Dark / Light) -->
+        <button id="themeToggleBtn" class="action-btn" title="Toggle Dark / Light Theme" aria-label="Toggle Theme">
+          <span id="themeIcon">🌙</span>
+          <span class="btn-text" id="themeText">Dark</span>
+        </button>
+
+        <!-- Sound Toggle Button -->
+        <button id="soundToggleBtn" class="action-btn" title="Toggle Sound Effects" aria-label="Toggle Sound">
+          <span id="soundIcon">🔊</span>
+          <span class="btn-text">Sound</span>
+        </button>
+
+        <!-- Reset Stats Button -->
+        <button id="resetStatsBtn" class="action-btn secondary" title="Reset Arcade Stats" aria-label="Reset Statistics">
+          <span>🔄</span>
+          <span class="btn-text">Reset</span>
+        </button>
+
+        <!-- User Account / Auth Actions -->
+        <div class="user-auth-wrapper" id="userAuthWrapper">
+          <!-- Guest State: Distinct Log In and Register buttons -->
+          <div class="guest-auth-actions" id="guestAuthActions">
+            <button id="loginBtn" class="action-btn user-btn" title="Sign In to your account" aria-label="Log In">
+              <span>🔑</span>
+              <span class="btn-text">Log In</span>
+            </button>
+            <button id="registerBtn" class="action-btn register-btn" title="Create a new account" aria-label="Register">
+              <span>📝</span>
+              <span class="btn-text">Register</span>
+            </button>
+          </div>
+
+          <!-- Logged In State: User Pill and Dropdown -->
+          <button id="authBtn" class="action-btn user-btn logged-in hidden" title="Account Settings" aria-label="Account">
+            <span id="authIcon">👾</span>
+            <span class="btn-text" id="authBtnText">Player</span>
+          </button>
+          <div id="userDropdown" class="user-dropdown hidden">
+            <div class="user-dropdown-header">
+              <span class="user-avatar-badge" id="dropdownAvatar">👾</span>
+              <div class="user-dropdown-info">
+                <span class="dropdown-username" id="dropdownUsername">Player</span>
+                <span class="dropdown-email" id="dropdownEmail">user@domain.com</span>
+              </div>
+            </div>
+            <div class="user-dropdown-divider"></div>
+            <div class="user-dropdown-stats">
+              <div class="drop-stat">
+                <span class="drop-stat-val" id="dropStatWins">0</span>
+                <span class="drop-stat-lbl">Wins</span>
+              </div>
+              <div class="drop-stat">
+                <span class="drop-stat-val" id="dropStatPlayed">0</span>
+                <span class="drop-stat-lbl">Played</span>
+              </div>
+              <div class="drop-stat">
+                <span class="drop-stat-val" id="dropStatReflex">--</span>
+                <span class="drop-stat-lbl">Reflex</span>
+              </div>
+            </div>
+            <div class="user-dropdown-divider"></div>
+            <button id="logoutBtn" class="dropdown-item danger">
+              <span>🚪</span> Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="main-content">
+    <section class="hero-section">
+      <div class="hero-badge">🎮 6 REMASTERED CLASSIC GAMES</div>
+      <h1 class="hero-title">Step Into The <span class="gradient-text">Randoo Arcade</span></h1>
+      <p class="hero-subtitle">
+        A completely redesigned collection of arcade mini-games, logic puzzles, and reflex benchmarks — upgraded with smart AI, real physics, sleek aesthetics, and responsive mobile-ready gameplay.
+      </p>
+
+      <!-- Global Stats Tracker Bar -->
+      <div class="stats-bar" id="globalStatsBar">
+        <div class="stat-card">
+          <span class="stat-value" id="statTotalPlayed">0</span>
+          <span class="stat-label">Games Played</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" id="statTotalWins">0</span>
+          <span class="stat-label">Total Victories</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" id="statBestReaction">--</span>
+          <span class="stat-label">Best Reaction (ms)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" id="statFavoriteGame">Rock Paper Scissors</span>
+          <span class="stat-label">Top Played</span>
+        </div>
+      </div>
+
+      <!-- Filter & Search Controls -->
+      <div class="filter-controls">
+        <div class="filter-tabs" role="tablist">
+          <button class="filter-tab active" data-category="all" role="tab">All Games (6)</button>
+          <button class="filter-tab" data-category="strategy" role="tab">Strategy & Brain (4)</button>
+          <button class="filter-tab" data-category="reflex" role="tab">Reflex & Speed (2)</button>
+          <button class="filter-tab" data-category="luck" role="tab">Luck & Numbers (2)</button>
+        </div>
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="gameSearch" placeholder="Search games by name or feature..." aria-label="Search games">
+        </div>
+      </div>
+    </section>
+
+    <!-- Game Showcase Grid -->
+    <section class="games-section" aria-label="Games Collection">
+      <div class="games-grid" id="gamesGrid">
+
+        <!-- 1. Rock Paper Scissors -->
+        <article class="game-card" data-category="reflex strategy" data-game-id="rps">
+          <a href="rock,%20paper,%20scissors/index.html" class="card-media" aria-label="Play Rock Paper Scissors">
+            <img src="banner_rps.svg" alt="Rock Paper Scissors Banner" class="card-img" loading="lazy">
+            <span class="category-pill reflex">Reflex & Strategy</span>
+            <div class="card-overlay">
+              <span class="play-hint">Play Duel ▶</span>
+            </div>
+          </a>
+          <div class="card-body">
+            <div class="card-header">
+              <h2 class="card-title">Rock Paper Scissors</h2>
+              <span class="game-badge ai">Smart AI</span>
+            </div>
+            <p class="card-desc">
+              Battle an intelligent Markov-chain AI that learns your subconscious move patterns, or battle in Tournament Best-of-5 and Endless Gauntlet modes.
+            </p>
+            <div class="card-tags">
+              <span class="tag">🧠 Predictive AI</span>
+              <span class="tag">🏆 Tournaments</span>
+              <span class="tag">✨ 3-2-1 Duel</span>
+            </div>
+            <div class="card-footer">
+              <div class="card-stat" id="statCardRPS">Played: <span>0</span></div>
+              <a href="rock,%20paper,%20scissors/index.html" class="play-btn">
+                <span>Play Now</span>
+                <span class="arrow">→</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- 2. Tic-Tac-Toe -->
+        <article class="game-card" data-category="strategy" data-game-id="ttt">
+          <a href="tic-tac-toe/index.html" class="card-media" aria-label="Play Tic-Tac-Toe Neon">
+            <img src="banner_ttt.svg" alt="Tic Tac Toe Banner" class="card-img" loading="lazy">
+            <span class="category-pill strategy">Strategy</span>
+            <div class="card-overlay">
+              <span class="play-hint">Challenge AI ▶</span>
+            </div>
+          </a>
+          <div class="card-body">
+            <div class="card-header">
+              <h2 class="card-title">Tic-Tac-Toe Neon</h2>
+              <span class="game-badge minimax">Unbeatable AI</span>
+            </div>
+            <p class="card-desc">
+              Test your wits against a mathematically unbeatable Minimax algorithm, switch to Casual mode, or play 2-Player local pass & play with animated neon strikes.
+            </p>
+            <div class="card-tags">
+              <span class="tag">🤖 Minimax Algorithm</span>
+              <span class="tag">👥 2-Player Local</span>
+              <span class="tag">⚡ Neon Strike</span>
+            </div>
+            <div class="card-footer">
+              <div class="card-stat" id="statCardTTT">Played: <span>0</span></div>
+              <a href="tic-tac-toe/index.html" class="play-btn">
+                <span>Play Now</span>
+                <span class="arrow">→</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- 3. Guessing Game -->
+        <article class="game-card" data-category="luck strategy" data-game-id="guess">
+          <a href="guessing%20game/index.html" class="card-media" aria-label="Play Number Range Guesser">
+            <img src="banner_guess.svg" alt="Guessing Game Banner" class="card-img" loading="lazy">
+            <span class="category-pill luck">Logic & Numbers</span>
+            <div class="card-overlay">
+              <span class="play-hint">Start Guessing ▶</span>
+            </div>
+          </a>
+          <div class="card-body">
+            <div class="card-header">
+              <h2 class="card-title">Number Range Guesser</h2>
+              <span class="game-badge hot">Hot / Cold</span>
+            </div>
+            <p class="card-desc">
+              Deduce the secret number using a dynamic visual range slider, real-time hot/cold thermal radar, and optimal binary search mathematical hints.
+            </p>
+            <div class="card-tags">
+              <span class="tag">🌡️ Thermal Radar</span>
+              <span class="tag">📊 Range Slider</span>
+              <span class="tag">💡 Binary Search</span>
+            </div>
+            <div class="card-footer">
+              <div class="card-stat" id="statCardGuess">Played: <span>0</span></div>
+              <a href="guessing%20game/index.html" class="play-btn">
+                <span>Play Now</span>
+                <span class="arrow">→</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- 4. Roll The Dice -->
+        <article class="game-card" data-category="luck" data-game-id="dice">
+          <a href="roll%20the%20dice/index.html" class="card-media" aria-label="Play 3D Dice Simulator">
+            <img src="banner_dice.svg" alt="Roll the Dice Banner" class="card-img" loading="lazy">
+            <span class="category-pill luck">Physics & Luck</span>
+            <div class="card-overlay">
+              <span class="play-hint">Roll Dice ▶</span>
+            </div>
+          </a>
+          <div class="card-body">
+            <div class="card-header">
+              <h2 class="card-title">3D Dice Simulator</h2>
+              <span class="game-badge physics">3D Engine</span>
+            </div>
+            <p class="card-desc">
+              Experience real 3D hardware-accelerated CSS cube physics. Roll 1 to 6 dice simultaneously with sum analytics, streak detection, and High-Low prediction mini-games.
+            </p>
+            <div class="card-tags">
+              <span class="tag">🎲 3D CSS Cubes</span>
+              <span class="tag">🔢 1-6 Dice</span>
+              <span class="tag">📈 Roll Stats</span>
+            </div>
+            <div class="card-footer">
+              <div class="card-stat" id="statCardDice">Played: <span>0</span></div>
+              <a href="roll%20the%20dice/index.html" class="play-btn">
+                <span>Play Now</span>
+                <span class="arrow">→</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- 5. Hangman -->
+        <article class="game-card" data-category="strategy" data-game-id="hangman">
+          <a href="hangman/index.html" class="card-media" aria-label="Play Hangman Quest">
+            <img src="banner_hangman.svg" alt="Hangman Banner" class="card-img" loading="lazy">
+            <span class="category-pill strategy">Word Puzzle</span>
+            <div class="card-overlay">
+              <span class="play-hint">Solve Word ▶</span>
+            </div>
+          </a>
+          <div class="card-body">
+            <div class="card-header">
+              <h2 class="card-title">Hangman Quest</h2>
+              <span class="game-badge word">6 Categories</span>
+            </div>
+            <p class="card-desc">
+              Rescue the stickman across 6 rich word categories. Features animated vector SVG gallows, hint tokens, physical keyboard support, and dynamic victory effects.
+            </p>
+            <div class="card-tags">
+              <span class="tag">🎨 Vector Gallows</span>
+              <span class="tag">⌨️ Keyboard Input</span>
+              <span class="tag">🧩 Hint Tokens</span>
+            </div>
+            <div class="card-footer">
+              <div class="card-stat" id="statCardHangman">Played: <span>0</span></div>
+              <a href="hangman/index.html" class="play-btn">
+                <span>Play Now</span>
+                <span class="arrow">→</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <!-- 6. Reaction Time Test -->
+        <article class="game-card" data-category="reflex" data-game-id="rtt">
+          <a href="rtt/index.html" class="card-media" aria-label="Play Reaction Time Test">
+            <img src="banner_rtt.svg" alt="Reaction Time Test Banner" class="card-img" loading="lazy">
+            <span class="category-pill reflex">Reflex Speed</span>
+            <div class="card-overlay">
+              <span class="play-hint">Test Reflex ▶</span>
+            </div>
+          </a>
+          <div class="card-body">
+            <div class="card-header">
+              <h2 class="card-title">Reaction Time Test</h2>
+              <span class="game-badge speed">Benchmark</span>
+            </div>
+            <p class="card-desc">
+              Benchmark your neurological response time down to the sub-millisecond with Human Benchmark 5-round protocol, anti-cheat detection, and percentile ranking.
+            </p>
+            <div class="card-tags">
+              <span class="tag">⏱️ High Precision ms</span>
+              <span class="tag">⚡ Anti-Cheat Guard</span>
+              <span class="tag">🏆 Esports Rank</span>
+            </div>
+            <div class="card-footer">
+              <div class="card-stat" id="statCardRTT">Best: <span>--</span></div>
+              <a href="rtt/index.html" class="play-btn">
+                <span>Play Now</span>
+                <span class="arrow">→</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+      </div>
+      <div id="noResultsMsg" class="no-results hidden">
+        <p>No games matched your search query. Try another keyword!</p>
+      </div>
+    </section>
+
+    <!-- Public Leaderboard Section (Backed by Encrypted Database) -->
+    <section class="leaderboard-section" id="leaderboardSection" aria-label="Arcade Public Leaderboard">
+      <div class="section-title-wrap">
+        <div class="hero-badge">🏆 ENCRYPTED ARCADE NETWORK</div>
+        <h2 class="section-title">Global <span class="gradient-text">Hall of Fame</span></h2>
+        <p class="section-desc">
+          Live public leaderboard saved and verified in our encrypted database. Compete for the #1 rank across all 6 mini-games!
+        </p>
+      </div>
+
+      <div class="leaderboard-card">
+        <div class="leaderboard-toolbar">
+          <div class="lb-tabs" role="tablist">
+            <button class="lb-tab active" data-sort="wins" role="tab" aria-selected="true">
+              <span>🏆</span> Victories
+            </button>
+            <button class="lb-tab" data-sort="played" role="tab" aria-selected="false">
+              <span>🎮</span> Games Played
+            </button>
+            <button class="lb-tab" data-sort="reaction" role="tab" aria-selected="false">
+              <span>⏱️</span> Reflex Speed
+            </button>
+          </div>
+          <button id="refreshLbBtn" class="action-btn small" title="Refresh Leaderboard">
+            <span>🔄</span> Refresh
+          </button>
+        </div>
+
+        <div class="leaderboard-table-wrap">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th class="col-rank">Rank</th>
+                <th class="col-player">Player</th>
+                <th class="col-wins">Total Wins</th>
+                <th class="col-played">Played</th>
+                <th class="col-rate">Win Rate</th>
+                <th class="col-reflex">Best Reflex</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody">
+              <!-- Dynamically populated from /api/leaderboard -->
+            </tbody>
+          </table>
+          <div id="leaderboardEmpty" class="lb-empty hidden">No player records found yet. Play a game to claim your spot!</div>
+          <div id="leaderboardLoading" class="lb-loading hidden">Loading encrypted rankings...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Arcade Features Highlight -->
+    <section class="features-section">
+      <div class="feature-item">
+        <div class="feature-icon">🚀</div>
+        <h3>Ultra-Fast & Responsive</h3>
+        <p>Engineered with zero bloated dependencies, instant load times, and fluid mobile touch ergonomics.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🧠</div>
+        <h3>Smart Game Algorithms</h3>
+        <p>Minimax decision trees, Markov-chain predictors, and precision timing engines power your gameplay.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🎨</div>
+        <h3>Dark &amp; Light Themes</h3>
+        <p>Seamlessly switch between cyber-arcade dark mode and clean daylight mode with persistent preferences.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">💾</div>
+        <h3>Encrypted DB &amp; Stats</h3>
+        <p>Your credentials and player achievements are securely stored in an authenticated AES-256-GCM database.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="footer-title">RANDOO ARCADE</span>
+        <p class="footer-desc">The modern web gaming laboratory.</p>
+      </div>
+      <div class="footer-actions-wrap">
+        <button id="openCookieBannerBtn" class="cookie-config-btn" title="Manage Cookie Preferences">
+          <span>🍪</span> Cookie Settings
+        </button>
+      </div>
+      <div class="footer-copyright">
+        <p>Originally Created by <strong>Muhammadziyo Sayitjonov</strong></p>
+        <p class="footer-meta">Remastered &bull; Multi-Device Responsive &bull; 2026 Edition</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Auth Modal (Login / Register) -->
+  <div id="authModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <button id="closeAuthModal" class="modal-close-btn" aria-label="Close dialog">&times;</button>
+      
+      <div class="modal-header">
+        <div class="auth-icon-badge">🔐</div>
+        <h2 id="modalTitle" class="modal-title">Sign In to Randoo</h2>
+        <p id="modalSubtitle" class="modal-subtitle">Save your player stats to our encrypted database</p>
+      </div>
+
+      <!-- Auth Tabs: Login vs Register -->
+      <div class="auth-tabs" role="tablist">
+        <button type="button" id="tabLogin" class="auth-tab active" role="tab" aria-selected="true">Sign In</button>
+        <button type="button" id="tabRegister" class="auth-tab" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <form id="authForm" class="auth-form" novalidate>
+        <!-- Username Field (Only for Register) -->
+        <div class="form-group" id="usernameGroup" style="display: none;">
+          <label for="authUsername" class="form-label">Username</label>
+          <div class="input-wrap">
+            <span class="input-icon">👤</span>
+            <input type="text" id="authUsername" placeholder="e.g. CyberKnight" autocomplete="username" maxlength="24">
+          </div>
+          <span class="field-hint">Your public gamer handle on the leaderboard</span>
+        </div>
+
+        <!-- Email Field (For both Login & Register) -->
+        <div class="form-group">
+          <label for="authEmail" class="form-label">Email</label>
+          <div class="input-wrap">
+            <span class="input-icon">✉️</span>
+            <input type="email" id="authEmail" placeholder="player@domain.com" required autocomplete="email">
+          </div>
+        </div>
+
+        <!-- Password Field (For both Login & Register) -->
+        <div class="form-group">
+          <label for="authPassword" class="form-label">Password</label>
+          <div class="input-wrap">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="authPassword" placeholder="Minimum 6 characters" required autocomplete="current-password">
+            <button type="button" id="togglePasswordBtn" class="pwd-toggle" title="Show or hide password" aria-label="Show password">👁️</button>
+          </div>
+        </div>
+
+        <!-- Cookie Option Notice / Checkbox -->
+        <div class="cookie-auth-opt" id="cookieAuthOpt">
+          <label class="checkbox-label">
+            <input type="checkbox" id="authCookieCheck" checked>
+            <span>Stay signed in across browser refreshes &amp; restarts (uses encrypted session cookie)</span>
+          </label>
+        </div>
+
+        <div id="authErrorMsg" class="form-error hidden" role="alert"></div>
+        <div id="authSuccessMsg" class="form-success hidden" role="status"></div>
+
+        <button type="submit" id="authSubmitBtn" class="btn-primary auth-submit-btn">
+          <span id="authSubmitText">Sign In</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cookie Consent Banner -->
+  <div id="cookieBanner" class="cookie-banner hidden" role="region" aria-label="Cookie Preferences">
+    <div class="cookie-inner">
+      <div class="cookie-icon">🍪</div>
+      <div class="cookie-content">
+        <strong class="cookie-title">Persistent Player Session &amp; Cookies</strong>
+        <p class="cookie-desc">
+          To keep your player account and encrypted stats loaded automatically after refreshing or restarting your browser, Randoo Arcade needs to use an encrypted session cookie. Would you like to accept cookies?
+        </p>
+      </div>
+      <div class="cookie-actions">
+        <button id="acceptCookiesBtn" class="btn-cookie-accept">Accept Cookies</button>
+        <button id="declineCookiesBtn" class="btn-cookie-decline">Decline</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

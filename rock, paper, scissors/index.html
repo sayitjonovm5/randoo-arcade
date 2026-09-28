@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rock Paper Scissors — Randoo Arcade</title>
+  <link rel="shortcut icon" href="icon.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="game-nav">
+    <a href="../index.html" class="nav-back" title="Return to Arcade Hub">
+      <img src="../home_icon.png" alt="Home" class="nav-home-icon">
+      <span>Arcade Hub</span>
+    </a>
+    <div class="nav-title">
+      <span class="nav-icon">⚔️</span>
+      <span>RPS Duel Arena</span>
+    </div>
+    <div class="nav-actions">
+      <button id="themeToggleBtn" class="nav-btn" title="Toggle Theme">
+        <span id="themeIcon">🌙</span>
+      </button>
+      <button id="soundToggleBtn" class="nav-btn" title="Toggle Sound">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button id="helpBtn" class="nav-btn" title="How to Play">❓</button>
+    </div>
+  </header>
+
+  <main class="game-wrapper">
+    <div class="game-card">
+
+      <!-- Mode & AI Selection Bar -->
+      <div class="settings-bar">
+        <div class="setting-item">
+          <label for="aiDifficulty">AI Mode:</label>
+          <select id="aiDifficulty">
+            <option value="markov">🧠 Smart AI (Markov Predictor)</option>
+            <option value="random">🎲 Casual (Random)</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label for="matchMode">Format:</label>
+          <select id="matchMode">
+            <option value="endless">🔥 Endless Gauntlet</option>
+            <option value="bo3">🏆 Best of 3</option>
+            <option value="bo5">👑 Best of 5</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Scoreboard -->
+      <div class="scoreboard">
+        <div class="score-box player">
+          <span class="score-label">YOU</span>
+          <span class="score-num" id="playerScore">0</span>
+        </div>
+        <div class="score-divider">
+          <span class="vs-text">VS</span>
+          <span class="match-status" id="matchStatusText">First to 1 Win</span>
+        </div>
+        <div class="score-box cpu">
+          <span class="score-label">CPU</span>
+          <span class="score-num" id="cpuScore">0</span>
+        </div>
+      </div>
+
+      <!-- Duel Arena Stage -->
+      <div class="arena-stage">
+        <!-- Player Hand Card -->
+        <div class="fighter-side">
+          <div class="hand-card" id="playerHandCard">
+            <span class="hand-emoji" id="playerHandEmoji">❔</span>
+          </div>
+          <span class="fighter-name">You</span>
+        </div>
+
+        <!-- VS Countdown Clash Indicator -->
+        <div class="duel-clash">
+          <div class="countdown-text" id="countdownText">Ready!</div>
+          <div class="duel-result-pill" id="resultPill">Pick Your Move</div>
+        </div>
+
+        <!-- CPU Hand Card -->
+        <div class="fighter-side">
+          <div class="hand-card" id="cpuHandCard">
+            <span class="hand-emoji" id="cpuHandEmoji">❔</span>
+          </div>
+          <span class="fighter-name" id="cpuName">Smart AI</span>
+        </div>
+      </div>
+
+      <!-- Match Complete In-Page Banner -->
+      <div id="matchOverBanner" class="match-over-banner hidden">
+        <div class="mob-content">
+          <span class="mob-badge" id="mobBadge">🏆 MATCH CHAMPION</span>
+          <h3 class="mob-title" id="mobTitle">You Won The Match!</h3>
+          <p class="mob-desc" id="mobDesc">You defeated the CPU 3 to 1!</p>
+          <div class="mob-actions">
+            <button type="button" id="mobPlayAgainBtn" class="btn primary-btn mob-btn">
+              <span>Play Next Match 🔁</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Move Selection Buttons -->
+      <div class="moves-container">
+        <p class="moves-prompt">Choose Your Weapon:</p>
+        <div class="moves-grid">
+          <button type="button" class="move-btn" data-move="rock" id="btnRock">
+            <span class="move-emoji">✊</span>
+            <span class="move-title">Rock</span>
+            <span class="move-beats">Crushes Scissors</span>
+          </button>
+          <button type="button" class="move-btn" data-move="paper" id="btnPaper">
+            <span class="move-emoji">✋</span>
+            <span class="move-title">Paper</span>
+            <span class="move-beats">Covers Rock</span>
+          </button>
+          <button type="button" class="move-btn" data-move="scissors" id="btnScissors">
+            <span class="move-emoji">✌️</span>
+            <span class="move-title">Scissors</span>
+            <span class="move-beats">Cuts Paper</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Additional Stats -->
+      <div class="extra-stats">
+        <div class="stat-cell">
+          <span class="stat-title">Win Streak:</span>
+          <strong id="streakCount">0</strong>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-title">Ties:</span>
+          <strong id="tiesCount">0</strong>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-title">Win Rate:</span>
+          <strong id="winRate">0%</strong>
+        </div>
+      </div>
+
+      <!-- Reset & New Match Controls -->
+      <div class="match-controls">
+        <button id="resetMatchBtn" class="btn secondary-btn">
+          <img src="reset_icon.png" alt="Reset" class="reset-icon">
+          <span>Reset Match</span>
+        </button>
+      </div>
+
+      <!-- Author Attribution -->
+      <footer class="game-footer">
+        <p>Originally Created by Muhammadziyo Sayitjonov &bull; Remastered for Randoo Arcade</p>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>How to Play RPS Duel</h2>
+      <p>1. <strong>Rock</strong> beats Scissors, <strong>Scissors</strong> beats Paper, and <strong>Paper</strong> beats Rock.</p>
+      <p>2. <strong>Markov Predictive AI</strong> studies your previous choices and calculates which move you are psychologically most likely to pick next!</p>
+      <p>3. Choose <strong>Best of 3</strong> or <strong>Best of 5</strong> for tournament matches, or test your limits in <strong>Endless Gauntlet</strong> mode!</p>
+      <button id="closeHelpBtn" class="btn primary-btn">Fight!</button>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>

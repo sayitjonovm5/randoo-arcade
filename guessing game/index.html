@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Number Range Guesser — Randoo Arcade</title>
+  <link rel="shortcut icon" href="guess.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="game-nav">
+    <a href="../index.html" class="nav-back" title="Return to Arcade Hub">
+      <img src="../home_icon.png" alt="Home" class="nav-home-icon">
+      <span>Arcade Hub</span>
+    </a>
+    <div class="nav-title">
+      <span class="nav-game-icon">🔢</span>
+      <span>Number Guesser</span>
+    </div>
+    <div class="nav-actions">
+      <button id="themeToggleBtn" class="nav-btn" title="Toggle Theme">
+        <span id="themeIcon">🌙</span>
+      </button>
+      <button id="soundToggleBtn" class="nav-btn" title="Toggle Sound">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button id="helpBtn" class="nav-btn" title="How to Play">❓</button>
+    </div>
+  </header>
+
+  <main class="game-wrapper">
+    <div class="game-card">
+      <!-- Difficulty Tabs -->
+      <div class="difficulty-tabs">
+        <button class="diff-btn active" data-min="1" data-max="50" data-max-tries="6">Easy (1-50)</button>
+        <button class="diff-btn" data-min="1" data-max="100" data-max-tries="7">Medium (1-100)</button>
+        <button class="diff-btn" data-min="1" data-max="500" data-max-tries="9">Hard (1-500)</button>
+      </div>
+
+      <!-- Secret Number Box & Prompt -->
+      <div class="secret-box-container">
+        <div class="secret-box" id="secretBox">
+          <span class="box-question" id="boxContent">?</span>
+        </div>
+        <h1 class="prompt-heading" id="promptHeading">I'm thinking of a number between 1 and 50</h1>
+        <p class="prompt-sub">Can you deduce it using thermal radar & optimal logic?</p>
+      </div>
+
+      <!-- Range Visualizer Slider -->
+      <div class="range-visualizer">
+        <div class="range-labels">
+          <span class="range-min" id="rangeMin">1</span>
+          <span class="range-current-zone" id="rangeZone">Active Interval: 1 - 50</span>
+          <span class="range-max" id="rangeMax">50</span>
+        </div>
+        <div class="range-bar-track">
+          <div class="range-bar-active" id="rangeBarActive" style="left: 0%; width: 100%;"></div>
+          <div class="range-marker last-guess" id="rangeMarkerGuess" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Thermal Radar / Proximity Indicator -->
+      <div class="thermal-container">
+        <div class="thermal-header">
+          <span class="thermal-label">Thermal Radar:</span>
+          <span class="thermal-status" id="thermalStatus">Make your first guess!</span>
+        </div>
+        <div class="thermal-meter">
+          <div class="thermal-bar" id="thermalBar" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Input Form -->
+      <form class="guess-form" id="guessForm" onsubmit="return false;">
+        <div class="input-row">
+          <input type="number" id="guessInput" class="guess-input" placeholder="Enter guess..." autocomplete="off" autofocus>
+          <button type="submit" id="submitBtn" class="btn primary-btn">
+            <span>Submit</span>
+            <span class="btn-arrow">⏎</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Feedback Area -->
+      <div class="feedback-area" id="feedbackArea">
+        <div class="feedback-message" id="answer">Awaiting your guess...</div>
+      </div>
+
+      <!-- Quick Action Hints -->
+      <div class="hints-row">
+        <button type="button" id="hintOptimalBtn" class="hint-pill">
+          💡 Suggest Midpoint: <strong id="hintMidpoint">25</strong>
+        </button>
+        <button type="button" id="hintEvenOddBtn" class="hint-pill">
+          🎲 Reveal Even/Odd
+        </button>
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="game-stats">
+        <div class="stat-pill">
+          <span class="stat-title">Attempts:</span>
+          <span class="stat-num" id="attemptsCount">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-title">Suggested Par:</span>
+          <span class="stat-num" id="targetTries">6</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-title">Session Wins:</span>
+          <span class="stat-num" id="sessionWins">0</span>
+        </div>
+      </div>
+
+      <!-- Guess History Trail -->
+      <div class="history-container">
+        <div class="history-header">Guess History</div>
+        <div class="history-chips" id="historyChips">
+          <span class="no-history-hint">No guesses yet</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="card-controls">
+        <button type="button" id="restartBtn" class="btn secondary-btn">
+          <span>🔄 New Round</span>
+        </button>
+      </div>
+
+      <!-- Copyright Footer -->
+      <footer class="game-footer">
+        <p>Originally Created by Muhammadziyo Sayitjonov &bull; Remastered for Randoo Arcade</p>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Celebration Canvas for Confetti -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>How to Play Number Guesser</h2>
+      <p>1. The computer selects a secret whole number inside the selected difficulty range.</p>
+      <p>2. Enter your guess. The <strong>Thermal Radar</strong> tells you if you are boiling hot, warm, cold, or freezing!</p>
+      <p>3. The <strong>Range Slider</strong> automatically narrows down the lowest and highest possible bounds.</p>
+      <p>4. Use the <strong>Midpoint Hint</strong> to play mathematically optimal Binary Search!</p>
+      <button id="closeHelpBtn" class="btn primary-btn">Got It!</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

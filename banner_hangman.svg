@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradHang" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0c1b" />
+      <stop offset="100%" stop-color="#181124" />
+    </linearGradient>
+    <filter id="glowPurple" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <rect width="640" height="360" fill="url(#bgGradHang)" />
+
+  <!-- Left: Minimalist Gallows Vector -->
+  <g transform="translate(180, 190)">
+    <!-- Base -->
+    <line x1="-50" y1="70" x2="50" y2="70" stroke="#475569" stroke-width="5" stroke-linecap="round" />
+    <!-- Post -->
+    <line x1="-20" y1="70" x2="-20" y2="-80" stroke="#475569" stroke-width="5" stroke-linecap="round" />
+    <!-- Beam -->
+    <line x1="-20" y1="-80" x2="45" y2="-80" stroke="#475569" stroke-width="5" stroke-linecap="round" />
+    <!-- Brace -->
+    <line x1="-20" y1="-50" x2="10" y2="-80" stroke="#475569" stroke-width="4" stroke-linecap="round" />
+    <!-- Rope -->
+    <line x1="45" y1="-80" x2="45" y2="-50" stroke="#ffb300" stroke-width="3" />
+    <!-- Figure (Minimalist) -->
+    <circle cx="45" cy="-35" r="14" fill="none" stroke="#ff3366" stroke-width="3.5" filter="url(#glowPurple)" />
+    <line x1="45" y1="-21" x2="45" y2="15" stroke="#ff3366" stroke-width="3.5" stroke-linecap="round" filter="url(#glowPurple)" />
+    <line x1="45" y1="-10" x2="25" y2="5" stroke="#ff3366" stroke-width="3.5" stroke-linecap="round" filter="url(#glowPurple)" />
+    <line x1="45" y1="-10" x2="65" y2="5" stroke="#ff3366" stroke-width="3.5" stroke-linecap="round" filter="url(#glowPurple)" />
+  </g>
+
+  <!-- Right: Modern Letter Slots [ W | O | R | D ] -->
+  <g transform="translate(410, 190)">
+    <!-- Slot W -->
+    <g transform="translate(-105, 0)">
+      <rect x="-24" y="-30" width="48" height="60" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2" />
+      <text x="0" y="10" font-family="'Space Grotesk', sans-serif" font-size="26" font-weight="800" fill="#a855f7" text-anchor="middle">W</text>
+    </g>
+    <!-- Slot O -->
+    <g transform="translate(-35, 0)">
+      <rect x="-24" y="-30" width="48" height="60" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2" />
+      <text x="0" y="10" font-family="'Space Grotesk', sans-serif" font-size="26" font-weight="800" fill="#a855f7" text-anchor="middle">O</text>
+    </g>
+    <!-- Slot R -->
+    <g transform="translate(35, 0)">
+      <rect x="-24" y="-30" width="48" height="60" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2" />
+      <text x="0" y="10" font-family="'Space Grotesk', sans-serif" font-size="26" font-weight="800" fill="#a855f7" text-anchor="middle">R</text>
+    </g>
+    <!-- Slot D -->
+    <g transform="translate(105, 0)">
+      <rect x="-24" y="-30" width="48" height="60" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" />
+      <line x1="-12" y1="18" x2="12" y2="18" stroke="#64748b" stroke-width="3" stroke-linecap="round" />
+    </g>
+  </g>
+
+  <!-- Top Badge -->
+  <g transform="translate(320, 48)">
+    <rect x="-70" y="-18" width="140" height="36" rx="18" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+    <text x="0" y="6" font-family="'Space Grotesk', sans-serif" font-size="14" font-weight="800" fill="#c084fc" text-anchor="middle" letter-spacing="2">WORD QUEST</text>
+  </g>
+</svg>

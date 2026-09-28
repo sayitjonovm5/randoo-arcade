@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reaction Time Test — Randoo Arcade</title>
+  <link rel="shortcut icon" href="../icon.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="game-nav">
+    <a href="../index.html" class="nav-back" title="Return to Arcade Hub">
+      <img src="../home_icon.png" alt="Home" class="nav-home-icon">
+      <span>Arcade Hub</span>
+    </a>
+    <div class="nav-title">
+      <span class="nav-icon">⚡</span>
+      <span>Reaction Time Benchmark</span>
+    </div>
+    <div class="nav-actions">
+      <button id="themeToggleBtn" class="nav-btn" title="Toggle Theme">
+        <span id="themeIcon">🌙</span>
+      </button>
+      <button id="soundToggleBtn" class="nav-btn" title="Toggle Sound">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button id="helpBtn" class="nav-btn" title="How to Play">❓</button>
+    </div>
+  </header>
+
+  <main class="game-wrapper">
+    <div class="game-card">
+
+      <!-- Test Status & Round Tracker Bar -->
+      <div class="tracker-bar">
+        <div class="tracker-info">
+          <span>Benchmark Protocol:</span>
+          <strong id="roundIndicator">5 Rounds</strong>
+        </div>
+        <div class="round-dots" id="roundDots">
+          <span class="round-dot" id="dot-0">1</span>
+          <span class="round-dot" id="dot-1">2</span>
+          <span class="round-dot" id="dot-2">3</span>
+          <span class="round-dot" id="dot-3">4</span>
+          <span class="round-dot" id="dot-4">5</span>
+        </div>
+      </div>
+
+      <!-- Full-Card Reaction Tap Zone -->
+      <div class="reaction-zone state-idle" id="reactionZone" role="button" tabindex="0" aria-label="Reaction Test Touch Area">
+        <div class="zone-content">
+          <div class="zone-icon" id="zoneIcon">⚡</div>
+          <h1 class="zone-headline" id="zoneHeadline">Click To Start</h1>
+          <p class="zone-subtext" id="zoneSubtext">When the red screen turns green, click as fast as you can!</p>
+          <div class="zone-metric hidden" id="zoneMetric">
+            <span class="metric-val" id="metricVal">0</span>
+            <span class="metric-unit">ms</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Session Benchmark Summary (Visible after 5 rounds) -->
+      <div class="summary-card hidden" id="summaryCard">
+        <div class="rank-banner" id="rankBanner">
+          <span class="rank-emoji" id="rankEmoji">⚡</span>
+          <div>
+            <h2 class="rank-title" id="rankTitle">Lightning Reflexes</h2>
+            <p class="rank-desc" id="rankDesc">Top 1% — Neurological Speed Demon</p>
+          </div>
+        </div>
+
+        <div class="score-breakdown">
+          <div class="breakdown-item">
+            <span class="breakdown-label">Average Time</span>
+            <strong class="breakdown-val" id="summaryAverage">-- ms</strong>
+          </div>
+          <div class="breakdown-item">
+            <span class="breakdown-label">Best Round</span>
+            <strong class="breakdown-val" id="summaryBest">-- ms</strong>
+          </div>
+          <div class="breakdown-item">
+            <span class="breakdown-label">Consistency</span>
+            <strong class="breakdown-val" id="summaryConsistency">--</strong>
+          </div>
+        </div>
+
+        <button id="retryBenchmarkBtn" class="btn primary-btn">
+          <span>🔄 Retest Reflexes</span>
+        </button>
+      </div>
+
+      <!-- All-Time High Scores Bar -->
+      <div class="benchmark-stats">
+        <div class="stat-pill">
+          <span class="stat-label">All-Time Best:</span>
+          <strong id="statAllTimeBest">-- ms</strong>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Tests Completed:</span>
+          <strong id="statTestsCompleted">0</strong>
+        </div>
+      </div>
+
+      <!-- Author Attribution -->
+      <footer class="game-footer">
+        <p>Originally Created by Muhammadziyo Sayitjonov &bull; Remastered for Randoo Arcade</p>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>Reaction Time Benchmark Guide</h2>
+      <p>1. Click the box or press <strong>Spacebar</strong> to begin.</p>
+      <p>2. The box will turn <strong>Red</strong>. Wait patiently!</p>
+      <p>3. As soon as the box turns <strong>Emerald Green</strong>, click immediately!</p>
+      <p>4. Complete all <strong>5 rounds</strong> to receive your certified average and reflex tier ranking.</p>
+      <p>⚠️ <em>False-Start Guard:</em> Clicking while it's still red triggers a penalty!</p>
+      <button id="closeHelpBtn" class="btn primary-btn">Got It!</button>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>

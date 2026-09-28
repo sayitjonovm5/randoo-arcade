@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hangman Quest — Randoo Arcade</title>
+  <link rel="shortcut icon" href="1.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="game-nav">
+    <a href="../index.html" class="nav-back" title="Return to Arcade Hub">
+      <img src="../home_icon.png" alt="Home" class="nav-home-icon">
+      <span>Arcade Hub</span>
+    </a>
+    <div class="nav-title">
+      <span class="nav-icon">🪢</span>
+      <span>Hangman Quest</span>
+    </div>
+    <div class="nav-actions">
+      <button id="themeToggleBtn" class="nav-btn" title="Toggle Theme">
+        <span id="themeIcon">🌙</span>
+      </button>
+      <button id="soundToggleBtn" class="nav-btn" title="Toggle Sound">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button id="helpBtn" class="nav-btn" title="How to Play">❓</button>
+    </div>
+  </header>
+
+  <main class="game-wrapper">
+    <div class="game-card">
+
+      <!-- Category & Difficulty Bar -->
+      <div class="controls-bar">
+        <div class="category-selector">
+          <label for="categorySelect">Category:</label>
+          <select id="categorySelect">
+            <option value="all">🌟 All Categories</option>
+            <option value="animals">🐾 Animals</option>
+            <option value="tech">💻 Tech & Science</option>
+            <option value="food">🍕 Food & Drinks</option>
+            <option value="places">🌍 World & Places</option>
+            <option value="nature">🌿 Nature & Space</option>
+          </select>
+        </div>
+        <div class="streak-badge">
+          <span>🔥 Streak:</span>
+          <strong id="streakCount">0</strong>
+        </div>
+      </div>
+
+      <!-- Gallows Display Area (Dual: Vector SVG + Stage Illustration) -->
+      <div class="gallows-display">
+        <!-- SVG Vector Gallows for crisp retina graphics -->
+        <svg id="hangmanSvg" class="hangman-svg" viewBox="0 0 200 220" aria-label="Hangman Gallows">
+          <!-- Gallows Base -->
+          <line x1="20" y1="200" x2="180" y2="200" class="gallow-bar base" />
+          <line x1="60" y1="200" x2="60" y2="20" class="gallow-bar post" />
+          <line x1="60" y1="20" x2="140" y2="20" class="gallow-bar beam" />
+          <line x1="60" y1="60" x2="100" y2="20" class="gallow-bar brace" />
+          <line x1="140" y1="20" x2="140" y2="50" class="gallow-rope" />
+          <!-- Hangman Figure Parts (revealed with lives lost) -->
+          <circle id="partHead" cx="140" cy="70" r="18" class="body-part hidden-part" />
+          <line id="partBody" x1="140" y1="88" x2="140" y2="135" class="body-part hidden-part" />
+          <line id="partArmL" x1="140" y1="100" x2="115" y2="120" class="body-part hidden-part" />
+          <line id="partArmR" x1="140" y1="100" x2="165" y2="120" class="body-part hidden-part" />
+          <line id="partLegL" x1="140" y1="135" x2="120" y2="175" class="body-part hidden-part" />
+          <line id="partLegR" x1="140" y1="135" x2="160" y2="175" class="body-part hidden-part" />
+        </svg>
+
+        <!-- Classic Stage Image Preview (small thumbnail) -->
+        <div class="classic-preview-wrap">
+          <img src="1.png" alt="Classic Stage" id="classicStageImg" class="classic-img">
+          <span class="lives-indicator">
+            Lives: <strong id="livesCount">6</strong> / 6
+          </span>
+        </div>
+      </div>
+
+      <!-- Hint Section -->
+      <div class="hint-card">
+        <div class="hint-header">
+          <span class="hint-tag" id="categoryTag">🐾 Category</span>
+          <button id="revealHintBtn" class="hint-btn">💡 Reveal Clue</button>
+          <button id="vowelTokenBtn" class="hint-btn secondary">✨ Reveal Vowel (<span id="tokenCount">1</span>)</button>
+        </div>
+        <p class="hint-text" id="hintText">Click "Reveal Clue" if you need a hint.</p>
+      </div>
+
+      <!-- Secret Word Letter Slots -->
+      <div class="word-slots-container" id="wordDisplay" aria-label="Secret Word Slots">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- On-Screen Virtual Keyboard -->
+      <div class="keyboard-container" id="keyboardContainer">
+        <!-- Letter buttons rendered dynamically -->
+      </div>
+
+      <!-- Controls & Restart -->
+      <div class="game-controls">
+        <button id="restartBtn" class="btn primary-btn">
+          <span>🔄 New Word</span>
+        </button>
+        <span class="keyboard-hint">⌨️ Physical Keyboard Supported</span>
+      </div>
+
+      <!-- Author Attribution -->
+      <footer class="game-footer">
+        <p>Originally Created by Muhammadziyo Sayitjonov &bull; Remastered for Randoo Arcade</p>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Victory / Defeat Modal -->
+  <div id="resultModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-icon" id="modalIcon">🎉</div>
+      <h2 id="modalTitle">Victory!</h2>
+      <p id="modalDesc">You solved the secret word!</p>
+      <div class="solution-box">
+        <span class="solution-label">The Word Was:</span>
+        <span class="solution-word" id="solutionWord">ELEPHANT</span>
+      </div>
+      <div class="modal-stats">
+        <div>Streak: <strong id="modalStreak">1</strong></div>
+        <div>Errors: <strong id="modalErrors">2</strong></div>
+      </div>
+      <button id="modalNextBtn" class="btn primary-btn">Play Next Word ▶</button>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>How to Play Hangman Quest</h2>
+      <p>1. Guess the hidden word one letter at a time.</p>
+      <p>2. You have <strong>6 lives</strong>. Each incorrect letter adds another piece to the gallows.</p>
+      <p>3. You can click the virtual on-screen letters or <strong>type directly on your physical keyboard</strong>.</p>
+      <p>4. Use the <strong>Reveal Clue</strong> or <strong>Reveal Vowel</strong> buttons when you're stuck!</p>
+      <button id="closeHelpBtn" class="btn primary-btn">Got It!</button>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>

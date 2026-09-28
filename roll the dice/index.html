@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Dice Simulator — Randoo Arcade</title>
+  <link rel="shortcut icon" href="icon.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="game-nav">
+    <a href="../index.html" class="nav-back" title="Return to Arcade Hub">
+      <img src="../home_icon.png" alt="Home" class="nav-home-icon">
+      <span>Arcade Hub</span>
+    </a>
+    <div class="nav-title">
+      <span class="nav-icon">🎲</span>
+      <span>3D Dice Simulator</span>
+    </div>
+    <div class="nav-actions">
+      <button id="themeToggleBtn" class="nav-btn" title="Toggle Theme">
+        <span id="themeIcon">🌙</span>
+      </button>
+      <button id="soundToggleBtn" class="nav-btn" title="Toggle Sound">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button id="helpBtn" class="nav-btn" title="How to Play">❓</button>
+    </div>
+  </header>
+
+  <main class="game-wrapper">
+    <div class="game-card">
+
+      <!-- Mode & Quantity Controls Bar -->
+      <div class="controls-bar">
+        <div class="control-group">
+          <label for="diceCountSelect">Number of Dice:</label>
+          <select id="diceCountSelect">
+            <option value="1">1 Die</option>
+            <option value="2" selected>2 Dice</option>
+            <option value="3">3 Dice</option>
+            <option value="4">4 Dice</option>
+            <option value="5">5 Dice</option>
+            <option value="6">6 Dice</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="gameModeSelect">Mode:</label>
+          <select id="gameModeSelect">
+            <option value="free">🎲 Free Roll</option>
+            <option value="highlow">🔮 High-Low Predictor</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- High-Low Prediction Bar (conditionally active) -->
+      <div class="prediction-bar hidden" id="predictionBar">
+        <span class="predict-label">Predict Next Sum:</span>
+        <div class="predict-buttons">
+          <button type="button" class="predict-btn" data-predict="higher">▲ Higher</button>
+          <button type="button" class="predict-btn" data-predict="exact">● Equal</button>
+          <button type="button" class="predict-btn" data-predict="lower">▼ Lower</button>
+        </div>
+        <div class="predict-streak">Streak: <strong id="predictStreak">0</strong></div>
+      </div>
+
+      <!-- 3D Dice Tray Arena -->
+      <div class="dice-tray" id="diceTray">
+        <div class="dice-container" id="diceContainer">
+          <!-- 3D CSS Cubes rendered dynamically -->
+        </div>
+        <div class="tray-shadow"></div>
+      </div>
+
+      <!-- Roll Result Analytics -->
+      <div class="roll-analytics">
+        <div class="stat-bubble">
+          <span class="bubble-label">Total Sum</span>
+          <span class="bubble-val" id="totalSum">--</span>
+        </div>
+        <div class="stat-bubble">
+          <span class="bubble-label">Average</span>
+          <span class="bubble-val" id="averageVal">--</span>
+        </div>
+        <div class="stat-bubble">
+          <span class="bubble-label">Highest</span>
+          <span class="bubble-val" id="highestVal">--</span>
+        </div>
+      </div>
+
+      <!-- Pattern Badges (Doubles, Triples, Yahtzee) -->
+      <div class="pattern-badge-area" id="patternArea">
+        <span class="pattern-badge hidden" id="patternBadge">Doubles!</span>
+      </div>
+
+      <!-- Primary Roll Trigger -->
+      <div class="roll-action-area">
+        <button id="rollBtn" class="btn primary-btn roll-btn">
+          <span class="btn-icon">🎲</span>
+          <span>Roll Dice!</span>
+          <span class="btn-subtext">(or Press Space)</span>
+        </button>
+      </div>
+
+      <!-- Roll History Log -->
+      <div class="history-section">
+        <div class="history-title-row">
+          <span>Roll History</span>
+          <button id="clearHistoryBtn" class="clear-btn">Clear</button>
+        </div>
+        <div class="history-list" id="historyList">
+          <div class="history-empty">No rolls recorded yet. Press Roll!</div>
+        </div>
+      </div>
+
+      <!-- Author Attribution -->
+      <footer class="game-footer">
+        <p>Originally Created by Muhammadziyo Sayitjonov &bull; Remastered for Randoo Arcade</p>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>How to Play 3D Dice Simulator</h2>
+      <p>1. Choose anywhere from <strong>1 to 6 dice</strong> to roll simultaneously.</p>
+      <p>2. Tap <strong>Roll Dice</strong> or press the <strong>Spacebar</strong> to roll with 3D physical rotation!</p>
+      <p>3. Switch to <strong>High-Low Predictor</strong> mode to test your probability intuition: guess whether the next sum will be Higher, Lower, or Equal to build a win streak!</p>
+      <button id="closeHelpBtn" class="btn primary-btn">Let's Roll!</button>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic-Tac-Toe Neon — Randoo Arcade</title>
+  <link rel="shortcut icon" href="icon.png" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="game-nav">
+    <a href="../index.html" class="nav-back" title="Return to Arcade Hub">
+      <img src="../home_icon.png" alt="Home" class="nav-home-icon">
+      <span>Arcade Hub</span>
+    </a>
+    <div class="nav-title">
+      <span class="nav-icon">⚔️</span>
+      <span>Tic-Tac-Toe Neon</span>
+    </div>
+    <div class="nav-actions">
+      <button id="themeToggleBtn" class="nav-btn" title="Toggle Theme">
+        <span id="themeIcon">🌙</span>
+      </button>
+      <button id="soundToggleBtn" class="nav-btn" title="Toggle Sound">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button id="helpBtn" class="nav-btn" title="How to Play">❓</button>
+    </div>
+  </header>
+
+  <main class="game-wrapper">
+    <div class="game-card">
+
+      <!-- Settings Bar (Opponent & Symbol) -->
+      <div class="settings-bar">
+        <div class="setting-item">
+          <label for="opponentSelect">Mode:</label>
+          <select id="opponentSelect">
+            <option value="minimax">🤖 Master AI (Unbeatable)</option>
+            <option value="medium">🧠 Tactical AI (Medium)</option>
+            <option value="easy">🎲 Casual AI (Easy)</option>
+            <option value="pvp">👥 2 Players (Local)</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label for="playerSymbolSelect">Play as:</label>
+          <select id="playerSymbolSelect">
+            <option value="X">X (Goes First)</option>
+            <option value="O">O (Goes Second)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Scoreboard -->
+      <div class="scoreboard">
+        <div class="score-pill x-side">
+          <span class="pill-label">Player X</span>
+          <span class="pill-score" id="scoreX">0</span>
+        </div>
+        <div class="score-pill tie-side">
+          <span class="pill-label">Draws</span>
+          <span class="pill-score" id="scoreDraws">0</span>
+        </div>
+        <div class="score-pill o-side">
+          <span class="pill-label">Player O</span>
+          <span class="pill-score" id="scoreO">0</span>
+        </div>
+      </div>
+
+      <!-- Turn & Game Status Banner -->
+      <div class="status-banner" id="statusBanner">
+        <span class="status-icon" id="statusIcon">⚡</span>
+        <span class="status-text" id="statusText">X's Turn</span>
+      </div>
+
+      <!-- 3x3 Neon Grid Board with SVG Strike Line Overlay -->
+      <div class="board-wrapper">
+        <div class="grid-board" id="gridBoard">
+          <button class="cell" data-index="0" aria-label="Cell 0"></button>
+          <button class="cell" data-index="1" aria-label="Cell 1"></button>
+          <button class="cell" data-index="2" aria-label="Cell 2"></button>
+          <button class="cell" data-index="3" aria-label="Cell 3"></button>
+          <button class="cell" data-index="4" aria-label="Cell 4"></button>
+          <button class="cell" data-index="5" aria-label="Cell 5"></button>
+          <button class="cell" data-index="6" aria-label="Cell 6"></button>
+          <button class="cell" data-index="7" aria-label="Cell 7"></button>
+          <button class="cell" data-index="8" aria-label="Cell 8"></button>
+        </div>
+
+        <!-- SVG Winning Line Canvas -->
+        <svg class="strike-canvas" id="strikeCanvas" viewBox="0 0 300 300">
+          <line id="winningLine" x1="0" y1="0" x2="0" y2="0" class="strike-line hidden" />
+        </svg>
+      </div>
+
+      <!-- Controls -->
+      <div class="board-controls">
+        <button id="resBtn" class="btn primary-btn">
+          <img src="icons8-reset-96.png" alt="Reset" class="btn-icon">
+          <span>New Game</span>
+        </button>
+      </div>
+
+      <!-- Author Attribution -->
+      <footer class="game-footer">
+        <p>Originally Created by Muhammadziyo Sayitjonov &bull; Remastered for Randoo Arcade</p>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>How to Play Tic-Tac-Toe Neon</h2>
+      <p>1. Players take turns placing their mark (<strong>X</strong> or <strong>O</strong>) on an empty grid cell.</p>
+      <p>2. The first player to align 3 matching marks horizontally, vertically, or diagonally wins!</p>
+      <p>3. <strong>Master AI</strong> implements recursive Minimax search and plays mathematically optimal moves.</p>
+      <p>4. Switch to <strong>Tactical AI</strong> or <strong>2 Players Local</strong> to play with friends!</p>
+      <button id="closeHelpBtn" class="btn primary-btn">Start Match!</button>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>
