@@ -9,7 +9,7 @@ const url = require('url');
 const EncryptedArcadeDB = require('./database');
 
 const PORT = process.env.PORT || 8085;
-const PUBLIC_DIR = __dirname;
+const PUBLIC_DIR = fs.existsSync(path.join(__dirname, 'frontend')) ? path.join(__dirname, 'frontend') : __dirname;
 const db = new EncryptedArcadeDB();
 
 const MIME_TYPES = {

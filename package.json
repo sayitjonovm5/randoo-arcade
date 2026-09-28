@@ -1,0 +1,18 @@
+{
+  "name": "randoo-arcade",
+  "version": "2.0.0",
+  "description": "Randoo Arcade — Modern Mini-Games Collection & Encrypted Vault",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "arcade",
+    "games",
+    "cyber-arcade",
+    "mini-games",
+    "javascript"
+  ],
+  "author": "Muhammadziyo Sayitjonov",
+  "license": "MIT"
+}
