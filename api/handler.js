@@ -107,10 +107,31 @@ async function handleApiRequest(req, res) {
     parsedUrl = { pathname: req.url, query: {} };
   }
 
-  let pathname = decodeURIComponent(parsedUrl.pathname || '');
+  // 1. Extract path from Vercel rewrite query parameter (e.g. ?path=leaderboard)
+  let subRoute = '';
+  if (parsedUrl.query && (parsedUrl.query.path || parsedUrl.query.route)) {
+    subRoute = String(parsedUrl.query.path || parsedUrl.query.route).replace(/^\/+/, '');
+  }
 
-  // Normalize pathname: ensure both /api/login and rewritten /login match
-  let apiPath = pathname;
+  // 2. Or from Vercel x-matched-path header
+  const matchedHeader = req.headers && (req.headers['x-matched-path'] || req.headers['x-now-route-matches']);
+
+  let apiPath = '';
+  if (subRoute) {
+    apiPath = '/api/' + subRoute;
+  } else if (matchedHeader && !matchedHeader.includes('/api/index.js')) {
+    apiPath = matchedHeader.split('?')[0];
+  } else {
+    apiPath = decodeURIComponent(parsedUrl.pathname || '');
+  }
+
+  // Strip query string and index.js if present
+  apiPath = apiPath.split('?')[0];
+  if (apiPath.endsWith('/index.js')) {
+    apiPath = apiPath.slice(0, -9);
+  }
+
+  // Normalize leading /api/ prefix
   if (!apiPath.startsWith('/api/') && apiPath !== '/api') {
     if (apiPath.startsWith('/')) {
       apiPath = '/api' + apiPath;
@@ -131,7 +152,7 @@ async function handleApiRequest(req, res) {
   }
 
   // Check if route belongs to API
-  const isApiRoute = pathname.startsWith('/api') || ['/register', '/login', '/logout', '/avatar', '/me', '/stats', '/leaderboard', '/health'].some(p => pathname.startsWith(p));
+  const isApiRoute = apiPath.startsWith('/api');
   if (!isApiRoute) {
     return false;
   }
