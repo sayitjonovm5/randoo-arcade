@@ -53,10 +53,12 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`[Randoo Arcade] Server running at http://localhost:${PORT}/`);
-  console.log(`[Randoo Arcade] Static frontend served from: ${PUBLIC_DIR}`);
-  console.log(`[Randoo Arcade] API endpoints active at: http://localhost:${PORT}/api/*`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`[Randoo Arcade] Server running at http://localhost:${PORT}/`);
+    console.log(`[Randoo Arcade] Static frontend served from: ${PUBLIC_DIR}`);
+    console.log(`[Randoo Arcade] API endpoints active at: http://localhost:${PORT}/api/*`);
+  });
+}
 
 module.exports = server;

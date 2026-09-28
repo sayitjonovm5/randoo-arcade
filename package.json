@@ -2,7 +2,6 @@
   "name": "randoo",
   "version": "2.0.0",
   "description": "Randoo Arcade — Modern Mini-Games Collection & Encrypted Vault",
-  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
