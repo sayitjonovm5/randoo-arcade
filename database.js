@@ -8,7 +8,27 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { normalize: rankedStats } = require('./frontend/ranked-stats');
-const DATA_RESET_VERSION = '2026-09-28-accounts-reset';
+const DATA_RESET_VERSION = '2026-09-28-v2-clean-reset';
+
+const BOT_USERNAMES = [
+  'NeoGamer', 'CyberPixel', 'ArcadeMaster', 'ShadowStrike',
+  'LuckyRoller', 'PixelNinja', 'QuantumSpeed', 'RetroViper'
+];
+
+function isBotUser(u) {
+  if (!u) return false;
+  if (u.isBot) return true;
+  if (u.email && (
+    u.email.endsWith('@randoo.net') ||
+    u.email.endsWith('@arcade.net') ||
+    u.email.toLowerCase().includes('bot')
+  )) return true;
+  if (u.username && (
+    BOT_USERNAMES.includes(u.username) ||
+    /bot/i.test(u.username)
+  )) return true;
+  return false;
+}
 
 // Zero-dependency environment variable loader
 function loadEnv() {
@@ -107,6 +127,23 @@ class EncryptedArcadeDB {
     }
   }
 
+  countUsers() {
+    return (this.data.users || []).filter(u => !isBotUser(u)).length;
+  }
+
+  reset() {
+    this.data = {
+      users: [],
+      sessions: [],
+      meta: {
+        createdAt: new Date().toISOString(),
+        version: '1.0',
+        resetVersion: DATA_RESET_VERSION
+      }
+    };
+    return this.save();
+  }
+
   save() {
     try {
       const plaintext = Buffer.from(JSON.stringify(this.data), 'utf8');
@@ -154,13 +191,8 @@ class EncryptedArcadeDB {
       if (!this.data.sessions) this.data.sessions = [];
 
       // Purge any dummy bots from older versions
-      const botUsernames = ['NeoGamer', 'CyberPixel', 'ArcadeMaster', 'ShadowStrike', 'LuckyRoller', 'PixelNinja', 'QuantumSpeed', 'RetroViper'];
       const initialCount = this.data.users.length;
-      this.data.users = this.data.users.filter(u => {
-        const isBotEmail = u.email && (u.email.endsWith('@randoo.net') || u.email.endsWith('@arcade.net'));
-        const isBotName = botUsernames.includes(u.username);
-        return !u.isBot && !isBotEmail && !isBotName;
-      });
+      this.data.users = this.data.users.filter(u => !isBotUser(u));
 
       if (this.data.users.length !== initialCount) {
         const userIds = new Set(this.data.users.map(u => u.id));
@@ -353,7 +385,7 @@ class EncryptedArcadeDB {
   // --- PUBLIC LEADERBOARD QUERY ---
 
   getLeaderboard(sortBy = 'wins', limit = 25) {
-    const list = this.data.users.filter(u => !u.isBot).map(u => {
+    const list = this.data.users.filter(u => !isBotUser(u)).map(u => {
       const stats = rankedStats(u.stats);
       const completed = stats.totalPlayed || 0;
       const wins = stats.totalWins || 0;
@@ -383,5 +415,9 @@ class EncryptedArcadeDB {
     }));
   }
 }
+
+EncryptedArcadeDB.DATA_RESET_VERSION = DATA_RESET_VERSION;
+EncryptedArcadeDB.isBotUser = isBotUser;
+EncryptedArcadeDB.BOT_USERNAMES = BOT_USERNAMES;
 
 module.exports = EncryptedArcadeDB;

@@ -5,6 +5,19 @@ const EncryptedArcadeDB = require('./database');
 class TransactionDatabase extends EncryptedArcadeDB {
   init() {}
   save() { this.dirty = true; return true; }
+  reset() {
+    this.data = {
+      users: [],
+      sessions: [],
+      meta: {
+        createdAt: new Date().toISOString(),
+        version: '1.0',
+        resetVersion: EncryptedArcadeDB.DATA_RESET_VERSION
+      }
+    };
+    this.dirty = true;
+    return true;
+  }
 }
 
 function createDatabaseService({ pool, local, serverless = false } = {}) {
@@ -14,7 +27,7 @@ function createDatabaseService({ pool, local, serverless = false } = {}) {
     if (!pool) {
       if (serverless) throw new Error('Shared database is not configured');
       local ||= new EncryptedArcadeDB();
-      return method === 'countUsers' ? local.data.users.length : local[method](...args);
+      return method === 'countUsers' ? local.countUsers() : local[method](...args);
     }
     schemaReady ||= pool.query(`CREATE TABLE IF NOT EXISTS randoo_store (
       id INTEGER PRIMARY KEY CHECK (id = 1), payload BYTEA NOT NULL
@@ -28,7 +41,37 @@ function createDatabaseService({ pool, local, serverless = false } = {}) {
       const { rows } = await client.query('SELECT payload FROM randoo_store WHERE id = 1 FOR UPDATE');
       const db = Object.create(TransactionDatabase.prototype);
       db.data = decode(rows[0].payload);
-      const result = method === 'countUsers' ? db.data.users.length : db[method](...args);
+
+      // Verify reset version and ensure stale database data is reset
+      if (!db.data || db.data.meta?.resetVersion !== EncryptedArcadeDB.DATA_RESET_VERSION) {
+        db.data = {
+          users: [],
+          sessions: [],
+          meta: { createdAt: new Date().toISOString(), version: '1.0', resetVersion: EncryptedArcadeDB.DATA_RESET_VERSION }
+        };
+        db.dirty = true;
+      } else {
+        // Enforce bot purge on loaded PostgreSQL payload
+        const initialCount = db.data.users ? db.data.users.length : 0;
+        if (db.data.users) {
+          db.data.users = db.data.users.filter(u => !EncryptedArcadeDB.isBotUser(u));
+          if (db.data.users.length !== initialCount) {
+            const userIds = new Set(db.data.users.map(u => u.id));
+            db.data.sessions = (db.data.sessions || []).filter(s => userIds.has(s.userId));
+            db.dirty = true;
+          }
+        }
+      }
+
+      let result;
+      if (method === 'countUsers') {
+        result = db.countUsers();
+      } else if (method === 'reset') {
+        result = db.reset();
+      } else {
+        result = db[method](...args);
+      }
+
       if (db.dirty) await client.query('UPDATE randoo_store SET payload = $1 WHERE id = 1', [encode(db.data)]);
       await client.query('COMMIT');
       return result;
@@ -51,13 +94,33 @@ function createDatabaseService({ pool, local, serverless = false } = {}) {
     return JSON.parse(Buffer.concat([decipher.update(payload.subarray(28)), decipher.final()]).toString('utf8'));
   }
   return Object.fromEntries(['countUsers', 'register', 'login', 'validateSession', 'destroySession',
-    'updateAvatar', 'syncUserStats', 'getLeaderboard'].map(method => [method, (...args) => run(method, args)]));
+    'updateAvatar', 'syncUserStats', 'getLeaderboard', 'reset'].map(method => [method, (...args) => run(method, args)]));
 }
 
 function configuredDatabase() {
   const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
-  const pool = connectionString ? new (require('pg').Pool)({ connectionString, max: 3, connectionTimeoutMillis: 10000, idleTimeoutMillis: 10000 }) : null;
-  return createDatabaseService({ pool, serverless: !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) });
+  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (!connectionString) {
+    return createDatabaseService({ pool: null, serverless: isServerless });
+  }
+
+  const isSslDisabled = connectionString.includes('sslmode=disable') ||
+    connectionString.includes('localhost') ||
+    connectionString.includes('127.0.0.1');
+
+  const pool = new (require('pg').Pool)({
+    connectionString,
+    max: isServerless ? 3 : 10,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 10000,
+    ssl: isSslDisabled ? false : { rejectUnauthorized: false }
+  });
+
+  pool.on('error', (err) => {
+    console.error('[Randoo Arcade] PostgreSQL pool error:', err.message);
+  });
+
+  return createDatabaseService({ pool, serverless: isServerless });
 }
 
 module.exports = { createDatabaseService, configuredDatabase };

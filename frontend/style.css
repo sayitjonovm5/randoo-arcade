@@ -1553,7 +1553,8 @@ body {
   height: 32px;
   border-radius: var(--radius-full);
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .rank-gold {

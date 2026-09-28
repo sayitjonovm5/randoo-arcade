@@ -31,3 +31,12 @@ but only RPS, Tic-Tac-Toe, Number Guesser and Hangman count toward ranked statis
 
 Run `npm test` to check the SQL storage flow with an embedded PostgreSQL engine,
 independent application instances, concurrent account updates and ranked totals.
+
+## Database Reset & Bot Policy
+- To reset both local and shared PostgreSQL databases to a completely clean slate, run:
+  ```bash
+  npm run reset-db
+  ```
+- Bots and dummy accounts are strictly excluded from all leaderboard queries and user counts.
+- Places 1, 2, and 3 in the leaderboard display champion cup emojis (🥇, 🥈, 🥉) without rank numbers.
+

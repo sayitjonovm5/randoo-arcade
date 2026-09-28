@@ -59,5 +59,48 @@ test('independent instances share accounts, sessions and rankings without lost w
     assert.equal(await b.validateSession(alice.token), null);
     const { rows } = await pool.query('SELECT payload FROM randoo_store WHERE id = 1');
     assert.equal(Buffer.from(rows[0].payload).includes(Buffer.from('Alice')), false);
+
+    // Test database reset on shared PostgreSQL instance
+    await a.reset();
+    assert.equal(await b.countUsers(), 0);
+    assert.deepEqual(await b.getLeaderboard(), []);
   } finally { await engine.close(); }
+});
+
+test('leaderboard strictly excludes bots from rankings and user count', async () => {
+  const EncryptedArcadeDB = require('../database');
+  const db = new EncryptedArcadeDB();
+  db.reset();
+
+  // Register real user
+  await db.register('RealPlayer', 'password-123');
+
+  // Manually insert bot users into memory to simulate legacy bot data
+  db.data.users.push({
+    id: 'user_bot1',
+    username: 'NeoGamer',
+    isBot: true,
+    stats: { totalPlayed: 50, totalWins: 45, games: { rps: { played: 50, wins: 45 } } }
+  });
+  db.data.users.push({
+    id: 'user_bot2',
+    username: 'ArcadeMaster',
+    stats: { totalPlayed: 100, totalWins: 90, games: { rps: { played: 100, wins: 90 } } }
+  });
+  db.data.users.push({
+    id: 'user_bot3',
+    username: 'RandomPlayer',
+    email: 'bot@randoo.net',
+    stats: { totalPlayed: 20, totalWins: 15, games: { rps: { played: 20, wins: 15 } } }
+  });
+
+  const leaderboard = db.getLeaderboard();
+  assert.equal(leaderboard.length, 1);
+  assert.equal(leaderboard[0].username, 'RealPlayer');
+  assert.equal(db.countUsers(), 1);
+
+  // Clean reset
+  db.reset();
+  assert.equal(db.countUsers(), 0);
+  assert.equal(db.getLeaderboard().length, 0);
 });

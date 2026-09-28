@@ -46,3 +46,37 @@ test('failed online requests show unavailable rather than browser-only rankings'
   assert.equal(rendered.length, 0);
   assert.match(context.leaderboardLoading.textContent, /unavailable/);
 });
+
+test('ranks 1, 2, and 3 display cup emojis without numbers, and rank 4+ displays #rank', () => {
+  const source = fs.readFileSync(require.resolve('../frontend/script.js'), 'utf8');
+  const start = source.indexOf('  function renderLeaderboardRows');
+  const end = source.indexOf('  function escapeHtml', start);
+  const element = () => ({ innerHTML: '', textContent: '', classList: { add() {}, remove() {} } });
+  const leaderboardBody = element();
+  const context = {
+    currentUser: null,
+    leaderboardBody,
+    leaderboardLoading: element(),
+    leaderboardEmpty: element(),
+    escapeHtml: s => s
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(start, end), context);
+
+  context.renderLeaderboardRows([
+    { rank: 1, username: 'PlayerOne', totalWins: 10, totalPlayed: 12, winRate: 83 },
+    { rank: 2, username: 'PlayerTwo', totalWins: 8, totalPlayed: 10, winRate: 80 },
+    { rank: 3, username: 'PlayerThree', totalWins: 5, totalPlayed: 8, winRate: 63 },
+    { rank: 4, username: 'PlayerFour', totalWins: 3, totalPlayed: 6, winRate: 50 }
+  ]);
+
+  const html = leaderboardBody.innerHTML;
+  // Rank 1: gold badge with 🥇 and no "1" inside badge
+  assert.match(html, /<span class="rank-badge rank-gold"[^>]*>🥇<\/span>/);
+  // Rank 2: silver badge with 🥈 and no "2" inside badge
+  assert.match(html, /<span class="rank-badge rank-silver"[^>]*>🥈<\/span>/);
+  // Rank 3: bronze badge with 🥉 and no "3" inside badge
+  assert.match(html, /<span class="rank-badge rank-bronze"[^>]*>🥉<\/span>/);
+  // Rank 4: standard #4
+  assert.match(html, /<span class="rank-standard">#4<\/span>/);
+});

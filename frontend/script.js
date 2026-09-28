@@ -268,6 +268,16 @@ class ClientEncryptedVault {
     }
   }
 
+  isBotUser(u) {
+    if (!u) return false;
+    if (u.isBot) return true;
+    const botEmails = ['neo@arcade.net', 'cyber@arcade.net', 'ninja@arcade.net', 'speed@arcade.net', 'viper@arcade.net'];
+    const botNames = ['NeoGamer', 'CyberPixel', 'PixelNinja', 'QuantumSpeed', 'RetroViper', 'ArcadeMaster', 'ShadowStrike', 'LuckyRoller'];
+    if (u.email && (botEmails.includes(u.email) || u.email.endsWith('@randoo.net') || u.email.endsWith('@arcade.net') || u.email.toLowerCase().includes('bot'))) return true;
+    if (u.username && (botNames.includes(u.username) || /bot/i.test(u.username))) return true;
+    return false;
+  }
+
   load() {
     try {
       const raw = localStorage.getItem(this.storageKey);
@@ -275,11 +285,9 @@ class ClientEncryptedVault {
         const data = this.decrypt(raw);
         if (data && data.users) {
           // Purge any dummy bots from older versions
-          const botEmails = ['neo@arcade.net', 'cyber@arcade.net', 'ninja@arcade.net', 'speed@arcade.net', 'viper@arcade.net'];
-          const botNames = ['NeoGamer', 'CyberPixel', 'PixelNinja', 'QuantumSpeed', 'RetroViper', 'ArcadeMaster', 'ShadowStrike', 'LuckyRoller'];
           let changed = false;
           for (const [key, u] of Object.entries(data.users)) {
-            if (u.isBot || botEmails.includes(key) || (u.email && botEmails.includes(u.email)) || botNames.includes(u.username)) {
+            if (this.isBotUser(u) || this.isBotUser({ username: key })) {
               delete data.users[key];
               changed = true;
             }
@@ -309,7 +317,7 @@ class ClientEncryptedVault {
 
   init() {
     // Clear old accounts, rankings, and login state once after the database reset.
-    const resetVersion = '2026-09-28-accounts-reset';
+    const resetVersion = '2026-09-28-v2-clean-reset';
     if (localStorage.getItem('randoo_data_reset_version') !== resetVersion) {
       localStorage.removeItem(this.storageKey);
       localStorage.removeItem(STATS_KEY);
@@ -427,7 +435,7 @@ class ClientEncryptedVault {
 
   getLeaderboard(sortBy = 'wins', limit = 25) {
     const data = this.load();
-    const list = Object.values(data.users).map(u => {
+    const list = Object.values(data.users).filter(u => !this.isBotUser(u)).map(u => {
       const ranked = RankedStats.normalize(u.stats);
       const played = ranked.totalPlayed;
       const wins = ranked.totalWins;
@@ -1373,11 +1381,11 @@ document.addEventListener('DOMContentLoaded', () => {
     leaderboardBody.innerHTML = players.map(p => {
       let rankHtml = '';
       if (p.rank === 1) {
-        rankHtml = '<span class="rank-badge rank-gold" title="1st Place Champion">🥇 1</span>';
+        rankHtml = '<span class="rank-badge rank-gold" title="1st Place Champion">🥇</span>';
       } else if (p.rank === 2) {
-        rankHtml = '<span class="rank-badge rank-silver" title="2nd Place">🥈 2</span>';
+        rankHtml = '<span class="rank-badge rank-silver" title="2nd Place">🥈</span>';
       } else if (p.rank === 3) {
-        rankHtml = '<span class="rank-badge rank-bronze" title="3rd Place">🥉 3</span>';
+        rankHtml = '<span class="rank-badge rank-bronze" title="3rd Place">🥉</span>';
       } else {
         rankHtml = `<span class="rank-standard">#${p.rank}</span>`;
       }
