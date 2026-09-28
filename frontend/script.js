@@ -279,7 +279,7 @@ class ClientEncryptedVault {
           const botNames = ['NeoGamer', 'CyberPixel', 'PixelNinja', 'QuantumSpeed', 'RetroViper', 'ArcadeMaster', 'ShadowStrike', 'LuckyRoller'];
           let changed = false;
           for (const [key, u] of Object.entries(data.users)) {
-            if (botEmails.includes(key) || (u.email && botEmails.includes(u.email)) || botNames.includes(u.username)) {
+            if (u.isBot || botEmails.includes(key) || (u.email && botEmails.includes(u.email)) || botNames.includes(u.username)) {
               delete data.users[key];
               changed = true;
             }
@@ -308,6 +308,14 @@ class ClientEncryptedVault {
   }
 
   init() {
+    // Clear old accounts, rankings, and login state once after the database reset.
+    const resetVersion = '2026-09-28-accounts-reset';
+    if (localStorage.getItem('randoo_data_reset_version') !== resetVersion) {
+      localStorage.removeItem(this.storageKey);
+      localStorage.removeItem(STATS_KEY);
+      this.clearSession();
+      localStorage.setItem('randoo_data_reset_version', resetVersion);
+    }
     this.load();
   }
 
@@ -1296,7 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const data = await apiFetch(`/api/leaderboard?sort=${sort}&limit=25`);
-      if (data && data.ok && Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
+      if (data && data.ok && Array.isArray(data.leaderboard)) {
         renderLeaderboardRows(data.leaderboard);
       }
     } catch (e) {}

@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const DATA_RESET_VERSION = '2026-09-28-accounts-reset';
 
 // Zero-dependency environment variable loader
 function loadEnv() {
@@ -57,7 +58,8 @@ class EncryptedArcadeDB {
       sessions: [],
       meta: {
         createdAt: new Date().toISOString(),
-        version: '1.0'
+        version: '1.0',
+        resetVersion: DATA_RESET_VERSION
       }
     };
     this.init();
@@ -139,6 +141,14 @@ class EncryptedArcadeDB {
 
       const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
       this.data = JSON.parse(plaintext.toString('utf8'));
+      // Reset existing installations once; preserve accounts created afterwards.
+      if (this.data.meta?.resetVersion !== DATA_RESET_VERSION) {
+        this.data = {
+          users: [], sessions: [],
+          meta: { createdAt: new Date().toISOString(), version: '1.0', resetVersion: DATA_RESET_VERSION }
+        };
+        if (!this.save()) throw new Error('Could not persist database reset');
+      }
       if (!this.data.users) this.data.users = [];
       if (!this.data.sessions) this.data.sessions = [];
 
@@ -148,17 +158,19 @@ class EncryptedArcadeDB {
       this.data.users = this.data.users.filter(u => {
         const isBotEmail = u.email && (u.email.endsWith('@randoo.net') || u.email.endsWith('@arcade.net'));
         const isBotName = botUsernames.includes(u.username);
-        return !isBotEmail && !isBotName;
+        return !u.isBot && !isBotEmail && !isBotName;
       });
 
       if (this.data.users.length !== initialCount) {
+        const userIds = new Set(this.data.users.map(u => u.id));
+        this.data.sessions = this.data.sessions.filter(s => userIds.has(s.userId));
         this.save();
       }
 
       return true;
     } catch (err) {
       console.error('Failed to decrypt database, initializing fresh store:', err.message);
-      this.data = { users: [], sessions: [], meta: { createdAt: new Date().toISOString() } };
+      this.data = { users: [], sessions: [], meta: { createdAt: new Date().toISOString(), resetVersion: DATA_RESET_VERSION } };
       this.save();
       return false;
     }
@@ -348,7 +360,7 @@ class EncryptedArcadeDB {
   // --- PUBLIC LEADERBOARD QUERY ---
 
   getLeaderboard(sortBy = 'wins', limit = 25) {
-    const list = this.data.users.map(u => {
+    const list = this.data.users.filter(u => !u.isBot).map(u => {
       const stats = u.stats || {};
       const completed = stats.totalPlayed || 0;
       const wins = stats.totalWins || 0;
