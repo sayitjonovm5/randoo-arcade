@@ -107,8 +107,8 @@ const server = http.createServer(async (req, res) => {
   // 1. POST /api/register
   if (req.method === 'POST' && pathname === '/api/register') {
     try {
-      const { username, email, password, avatar, allowCookies } = await parseJsonBody(req);
-      const { user, token } = db.register(username, email, password, avatar);
+      const { username, password, avatar, allowCookies } = await parseJsonBody(req);
+      const { user, token } = db.register(username, password, avatar);
 
       const headers = {};
       if (allowCookies) {
@@ -141,8 +141,9 @@ const server = http.createServer(async (req, res) => {
   // 3. POST /api/login
   if (req.method === 'POST' && pathname === '/api/login') {
     try {
-      const { email, password, allowCookies } = await parseJsonBody(req);
-      const { user, token } = db.login(email, password);
+      const { username, email, password, allowCookies } = await parseJsonBody(req);
+      const loginIdentifier = username || email;
+      const { user, token } = db.login(loginIdentifier, password);
 
       const headers = {};
       if (allowCookies) {

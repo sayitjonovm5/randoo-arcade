@@ -83,7 +83,7 @@
               </div>
               <div class="user-dropdown-info">
                 <span class="dropdown-username" id="dropdownUsername">Player</span>
-                <span class="dropdown-email" id="dropdownEmail">user@domain.com</span>
+                <span class="dropdown-email" id="dropdownEmail">Verified Player</span>
                 <button type="button" id="triggerChangePhotoBtn" class="change-photo-btn">
                   <span>📷</span> Change Photo
                 </button>
@@ -479,14 +479,14 @@
       </div>
 
       <form id="authForm" class="auth-form" novalidate>
-        <!-- Username Field (Only for Register) -->
-        <div class="form-group" id="usernameGroup" style="display: none;">
+        <!-- Username Field (For both Login & Register) -->
+        <div class="form-group" id="usernameGroup">
           <label for="authUsername" class="form-label">Username</label>
           <div class="input-wrap">
             <span class="input-icon">👤</span>
-            <input type="text" id="authUsername" placeholder="e.g. CyberKnight" autocomplete="username" maxlength="24">
+            <input type="text" id="authUsername" placeholder="e.g. CyberKnight" autocomplete="username" maxlength="24" required>
           </div>
-          <span class="field-hint">Your public gamer handle on the leaderboard</span>
+          <span class="field-hint" id="usernameHint">Your gamer handle on the leaderboard</span>
         </div>
 
         <!-- Profile Photo Upload Field (Only for Register) -->
@@ -507,15 +507,6 @@
               </div>
               <span class="field-hint">JPG, PNG, or WebP. Auto-centered square.</span>
             </div>
-          </div>
-        </div>
-
-        <!-- Email Field (For both Login & Register) -->
-        <div class="form-group">
-          <label for="authEmail" class="form-label">Email</label>
-          <div class="input-wrap">
-            <span class="input-icon">✉️</span>
-            <input type="email" id="authEmail" placeholder="player@domain.com" required autocomplete="email">
           </div>
         </div>
 

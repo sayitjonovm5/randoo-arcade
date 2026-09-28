@@ -99,29 +99,20 @@ class EncryptedArcadeDB {
 
   // --- USER AUTHENTICATION LOGIC ---
 
-  register(username, email, password, avatar = null) {
+  register(username, password, avatar = null) {
     if (!username || typeof username !== 'string' || username.trim().length < 2) {
       throw new Error('Username must be at least 2 characters long.');
     }
     if (username.trim().length > 25) {
       throw new Error('Username cannot exceed 25 characters.');
     }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      throw new Error('Please provide a valid email address.');
-    }
     if (!password || password.length < 5) {
       throw new Error('Password must be at least 5 characters long.');
     }
 
     const cleanUsername = username.trim();
-    const cleanEmail = email.trim().toLowerCase();
 
     // Check existing
-    const emailExists = this.data.users.some(u => u.email.toLowerCase() === cleanEmail);
-    if (emailExists) {
-      throw new Error('An account with this email already exists.');
-    }
-
     const usernameExists = this.data.users.some(u => u.username.toLowerCase() === cleanUsername.toLowerCase());
     if (usernameExists) {
       throw new Error('This username is already taken. Please choose another.');
@@ -133,7 +124,6 @@ class EncryptedArcadeDB {
     const newUser = {
       id: 'user_' + crypto.randomBytes(8).toString('hex'),
       username: cleanUsername,
-      email: cleanEmail,
       avatar: (typeof avatar === 'string' && avatar.startsWith('data:image/')) ? avatar : null,
       salt,
       passwordHash,
@@ -178,25 +168,25 @@ class EncryptedArcadeDB {
     return this.sanitizeUser(user);
   }
 
-  login(identifier, password) {
-    if (!identifier || !password) {
-      throw new Error('Please provide your email/username and password.');
+  login(username, password) {
+    if (!username || !password) {
+      throw new Error('Please enter your username and password.');
     }
 
-    const cleanId = identifier.trim().toLowerCase();
+    const cleanUser = username.trim().toLowerCase();
     const user = this.data.users.find(u => 
-      u.email.toLowerCase() === cleanId || u.username.toLowerCase() === cleanId
+      u.username.toLowerCase() === cleanUser || (u.email && u.email.toLowerCase() === cleanUser)
     );
 
     if (!user) {
-      throw new Error('Invalid email or password.');
+      throw new Error('Invalid username or password.');
     }
 
     const testHash = crypto.scryptSync(password, user.salt, 64).toString('hex');
     const match = crypto.timingSafeEqual(Buffer.from(testHash, 'hex'), Buffer.from(user.passwordHash, 'hex'));
 
     if (!match) {
-      throw new Error('Invalid email or password.');
+      throw new Error('Invalid username or password.');
     }
 
     user.lastActive = new Date().toISOString();
@@ -239,7 +229,6 @@ class EncryptedArcadeDB {
     return {
       id: user.id,
       username: user.username,
-      email: user.email,
       avatar: user.avatar || null,
       createdAt: user.createdAt,
       lastActive: user.lastActive,

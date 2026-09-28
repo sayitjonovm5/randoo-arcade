@@ -311,14 +311,14 @@ class ClientEncryptedVault {
     this.load();
   }
 
-  register(username, email, password, avatar = null) {
+  register(username, password, avatar = null) {
     const data = this.load();
-    const normEmail = email.toLowerCase().trim();
     const normUser = username.trim();
 
-    if (data.users[normEmail]) {
-      throw new Error('An account with this email address already exists.');
+    if (!normUser || normUser.length < 2) {
+      throw new Error('Username must be at least 2 characters long.');
     }
+
     for (const u of Object.values(data.users)) {
       if (u.username.toLowerCase() === normUser.toLowerCase()) {
         throw new Error('This username is already taken. Please choose another.');
@@ -330,7 +330,6 @@ class ClientEncryptedVault {
     const user = {
       id: 'user_' + Math.random().toString(36).slice(2, 12),
       username: normUser,
-      email: normEmail,
       avatar: (avatar && typeof avatar === 'string' && avatar.startsWith('data:image/')) ? avatar : null,
       passwordHash,
       salt,
@@ -343,7 +342,7 @@ class ClientEncryptedVault {
       createdAt: new Date().toISOString()
     };
 
-    data.users[normEmail] = user;
+    data.users[normUser.toLowerCase()] = user;
     this.save(data);
 
     const token = 'token_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -363,12 +362,17 @@ class ClientEncryptedVault {
     return null;
   }
 
-  login(email, password) {
+  login(username, password) {
     const data = this.load();
-    const normEmail = email.toLowerCase().trim();
-    const user = data.users[normEmail];
+    const cleanUser = (username || '').toLowerCase().trim();
+    let user = data.users[cleanUser];
     if (!user) {
-      throw new Error('No account found with this email. Please check your spelling or register.');
+      user = Object.values(data.users).find(u => 
+        u.username.toLowerCase() === cleanUser || (u.email && u.email.toLowerCase() === cleanUser)
+      );
+    }
+    if (!user) {
+      throw new Error('No player found with this username. Please check your spelling or register.');
     }
 
     const hash = this.hashPassword(password, user.salt);
@@ -607,7 +611,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const authForm = document.getElementById('authForm');
   const usernameGroup = document.getElementById('usernameGroup');
   const authUsername = document.getElementById('authUsername');
-  const authEmail = document.getElementById('authEmail');
   const authPassword = document.getElementById('authPassword');
   const authCookieCheck = document.getElementById('authCookieCheck');
   const togglePasswordBtn = document.getElementById('togglePasswordBtn');
@@ -738,7 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (authBtnText) authBtnText.textContent = currentUser.username;
       if (dropdownUsername) dropdownUsername.textContent = currentUser.username;
-      if (dropdownEmail) dropdownEmail.textContent = currentUser.email;
+      if (dropdownEmail) dropdownEmail.textContent = currentUser.email || 'Verified Player';
 
       // Handle Profile Photo / Avatar
       if (currentUser.avatar) {
@@ -982,6 +985,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authErrorMsg) authErrorMsg.classList.add('hidden');
     if (authSuccessMsg) authSuccessMsg.classList.add('hidden');
 
+    if (usernameGroup) usernameGroup.style.display = 'flex';
+    if (authUsername) authUsername.setAttribute('required', 'true');
+
     if (mode === 'login') {
       if (tabLogin) {
         tabLogin.classList.add('active');
@@ -991,11 +997,9 @@ document.addEventListener('DOMContentLoaded', () => {
         tabRegister.classList.remove('active');
         tabRegister.setAttribute('aria-selected', 'false');
       }
-      if (usernameGroup) usernameGroup.style.display = 'none';
       if (avatarGroup) avatarGroup.style.display = 'none';
-      if (authUsername) authUsername.removeAttribute('required');
       if (modalTitle) modalTitle.textContent = 'Sign In to Randoo';
-      if (modalSubtitle) modalSubtitle.textContent = 'Save your player stats to our encrypted database';
+      if (modalSubtitle) modalSubtitle.textContent = 'Enter your username and password to load your stats';
       if (authSubmitText) authSubmitText.textContent = 'Sign In';
       clearRegAvatar();
     } else {
@@ -1007,11 +1011,9 @@ document.addEventListener('DOMContentLoaded', () => {
         tabLogin.classList.remove('active');
         tabLogin.setAttribute('aria-selected', 'false');
       }
-      if (usernameGroup) usernameGroup.style.display = 'flex';
       if (avatarGroup) avatarGroup.style.display = 'flex';
-      if (authUsername) authUsername.setAttribute('required', 'true');
       if (modalTitle) modalTitle.textContent = 'Create Arcade Account';
-      if (modalSubtitle) modalSubtitle.textContent = 'Join the public leaderboard and encrypt your game records';
+      if (modalSubtitle) modalSubtitle.textContent = 'Choose your username, profile photo, and password';
       if (authSubmitText) authSubmitText.textContent = 'Create Account';
     }
   }
@@ -1021,11 +1023,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authModal) authModal.classList.remove('hidden');
     setAuthMode(mode);
     setTimeout(() => {
-      if (mode === 'register' && authUsername) {
-        authUsername.focus();
-      } else if (authEmail) {
-        authEmail.focus();
-      }
+      if (authUsername) authUsername.focus();
     }, 100);
   }
 
@@ -1172,9 +1170,8 @@ document.addEventListener('DOMContentLoaded', () => {
       authErrorMsg.classList.add('hidden');
       authSuccessMsg.classList.add('hidden');
 
-      const email = authEmail.value.trim();
-      const password = authPassword.value;
       const username = authUsername ? authUsername.value.trim() : '';
+      const password = authPassword ? authPassword.value : '';
       const allowCookies = authCookieCheck ? authCookieCheck.checked : true;
 
       if (allowCookies) {
@@ -1182,14 +1179,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cookieBanner) cookieBanner.classList.add('hidden');
       }
 
-      if (authMode === 'register' && (!username || username.length < 2)) {
-        authErrorMsg.textContent = 'Please enter a valid username (min 2 characters).';
+      if (!username || username.length < 2) {
+        authErrorMsg.textContent = 'Please enter your username (min 2 characters).';
         authErrorMsg.classList.remove('hidden');
+        if (authUsername) authUsername.focus();
         return;
       }
 
-      if (!email || !email.includes('@')) {
-        authErrorMsg.textContent = 'Please provide a valid email address.';
+      if (username.length > 25) {
+        authErrorMsg.textContent = 'Username cannot exceed 25 characters.';
         authErrorMsg.classList.remove('hidden');
         return;
       }
@@ -1197,6 +1195,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!password || password.length < 6) {
         authErrorMsg.textContent = 'Password must be at least 6 characters long.';
         authErrorMsg.classList.remove('hidden');
+        if (authPassword) authPassword.focus();
         return;
       }
 
@@ -1208,8 +1207,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const endpoint = authMode === 'register' ? '/api/register' : '/api/login';
         const payload = authMode === 'register'
-          ? { username, email, password, avatar: selectedRegAvatar, allowCookies }
-          : { email, password, allowCookies };
+          ? { username, password, avatar: selectedRegAvatar, allowCookies }
+          : { username, password, allowCookies };
 
         const data = await apiFetch(endpoint, {
           method: 'POST',
@@ -1228,9 +1227,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!authResult) {
         try {
           if (authMode === 'register') {
-            authResult = vault.register(username, email, password, selectedRegAvatar);
+            authResult = vault.register(username, password, selectedRegAvatar);
           } else {
-            authResult = vault.login(email, password);
+            authResult = vault.login(username, password);
           }
         } catch (vaultErr) {
           authErrorMsg.textContent = vaultErr.message;
