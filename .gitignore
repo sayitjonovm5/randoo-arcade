@@ -13,6 +13,7 @@ desktop.ini
 # Scratch / Temporary Test Scripts
 scratch/
 
-# Environment Variables
+# Environment Variables (Keep secrets safe!)
 .env
-.env.local
+.env.*
+!.env.example

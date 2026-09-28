@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Network Fetch with fallback to port 8085
+  // Network Fetch with localhost port 8085 fallback (safe for both local dev and production CDN)
   async function apiFetch(endpoint, options = {}) {
     const isHttp = window.location.protocol === 'http:' || window.location.protocol === 'https:';
     if (!isHttp) throw new Error('Static/file context');
@@ -714,7 +714,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok) return await res.json();
     } catch (e) {}
 
-    if (window.location.port !== '8085') {
+    // Only fallback to localhost:8085 when developing locally, avoiding Mixed-Content on Vercel
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost && window.location.port !== '8085') {
       try {
         const res = await fetch('http://localhost:8085' + endpoint, options);
         if (res.ok) return await res.json();

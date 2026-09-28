@@ -1,17 +1,57 @@
 /**
  * RANDOO ARCADE - SIMPLE ENCRYPTED DATABASE ENGINE
  * Uses AES-256-GCM Authenticated Encryption to protect all user credentials and player stats on disk.
+ * Supports environment variable credential loading (.env) and serverless writable paths (/tmp).
  */
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+// Zero-dependency environment variable loader
+function loadEnv() {
+  const envPath = path.join(__dirname, '.env');
+  if (typeof process.loadEnvFile === 'function') {
+    if (fs.existsSync(envPath)) {
+      try { process.loadEnvFile(envPath); } catch (e) {}
+    }
+  } else if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, 'utf8');
+      content.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#')) {
+          const idx = trimmed.indexOf('=');
+          if (idx !== -1) {
+            const key = trimmed.slice(0, idx).trim();
+            const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+            if (!process.env[key]) {
+              process.env[key] = val;
+            }
+          }
+        }
+      });
+    } catch (e) {}
+  }
+}
+
+// Load env at module startup
+loadEnv();
+
 class EncryptedArcadeDB {
-  constructor(dbFilePath, secretKey) {
-    this.dbFilePath = dbFilePath || path.join(__dirname, 'data', 'arcade_database.enc');
-    // 32-byte master encryption key
-    this.masterKey = crypto.scryptSync(secretKey || 'randoo-arcade-master-cipher-secret-key-2026', 'randoo-salt', 32);
+  constructor(dbFilePath, secretKey, salt) {
+    loadEnv();
+
+    // Determine database path with Serverless / Vercel compatibility
+    this.dbFilePath = dbFilePath || this.resolveDbPath();
+
+    // Load credentials from environment variables or constructor arguments with secure fallback
+    const keyString = secretKey || process.env.DB_SECRET_KEY || 'randoo-arcade-master-cipher-secret-key-2026';
+    const saltString = salt || process.env.DB_SALT || 'randoo-salt';
+
+    // 32-byte master encryption key derived via scrypt
+    this.masterKey = crypto.scryptSync(keyString, saltString, 32);
+
     this.data = {
       users: [],
       sessions: [],
@@ -23,10 +63,37 @@ class EncryptedArcadeDB {
     this.init();
   }
 
+  resolveDbPath() {
+    if (process.env.DB_FILE_PATH) {
+      return process.env.DB_FILE_PATH;
+    }
+    // On Vercel / AWS Lambda / Serverless, root filesystem is read-only; use /tmp
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      return path.join('/tmp', 'arcade_database.enc');
+    }
+    return path.join(__dirname, 'data', 'arcade_database.enc');
+  }
+
   init() {
     const dir = path.dirname(this.dbFilePath);
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+      } catch (err) {
+        console.warn('Could not create DB directory:', dir, err.message);
+      }
+    }
+
+    // In serverless environments, seed /tmp/arcade_database.enc from bundled data file if needed
+    if (!fs.existsSync(this.dbFilePath)) {
+      const seedFile = path.join(__dirname, 'data', 'arcade_database.enc');
+      if (fs.existsSync(seedFile) && this.dbFilePath !== seedFile) {
+        try {
+          fs.copyFileSync(seedFile, this.dbFilePath);
+        } catch (seedErr) {
+          console.warn('Could not copy seed DB file to writable path:', seedErr.message);
+        }
+      }
     }
 
     if (fs.existsSync(this.dbFilePath)) {
@@ -51,7 +118,7 @@ class EncryptedArcadeDB {
       fs.writeFileSync(this.dbFilePath, fileBuffer);
       return true;
     } catch (err) {
-      console.error('Failed to encrypt and save database:', err);
+      console.warn('Warning: Failed to write database to disk (keeping in memory):', err.message);
       return false;
     }
   }

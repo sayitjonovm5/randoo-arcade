@@ -4,7 +4,9 @@
   "description": "Randoo Arcade — Modern Mini-Games Collection & Encrypted Vault",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node scratch/test_no_email_auth.js"
   },
   "keywords": [
     "arcade",
