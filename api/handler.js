@@ -4,10 +4,10 @@
  */
 
 const url = require('url');
-const EncryptedArcadeDB = require('../database');
+const { configuredDatabase } = require('../shared-database');
 
 // Singleton database instance
-const db = new EncryptedArcadeDB();
+const db = configuredDatabase();
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -38,16 +38,12 @@ function parseCookies(req) {
 }
 
 function getSessionToken(req) {
-  // 1. From Cookie
-  const cookies = parseCookies(req);
-  if (cookies.randoo_session) return cookies.randoo_session;
-
-  // 2. From Authorization Header
+  // An explicit token takes priority over a stale cookie.
   const auth = req.headers && req.headers['authorization'];
   if (auth && auth.startsWith('Bearer ')) {
     return auth.slice(7).trim();
   }
-  return null;
+  return parseCookies(req).randoo_session || null;
 }
 
 function parseJsonBody(req) {
@@ -87,6 +83,7 @@ function sendJson(res, statusCode, data, headers = {}) {
   const json = JSON.stringify(data);
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -99,7 +96,7 @@ function sendJson(res, statusCode, data, headers = {}) {
  * Main API request dispatcher
  * Returns true if request was handled, false otherwise.
  */
-async function handleApiRequest(req, res) {
+async function dispatchApiRequest(req, res) {
   let parsedUrl;
   try {
     parsedUrl = url.parse(req.url, true);
@@ -170,7 +167,7 @@ async function handleApiRequest(req, res) {
       service: 'Randoo Arcade API',
       status: 'healthy',
       time: new Date().toISOString(),
-      registeredPlayers: db.data.users.length
+      registeredPlayers: await db.countUsers()
     }), true;
   }
 
@@ -178,7 +175,7 @@ async function handleApiRequest(req, res) {
   if (req.method === 'POST' && apiPath === '/api/register') {
     try {
       const { username, password, avatar, allowCookies } = await parseJsonBody(req);
-      const { user, token } = db.register(username, password, avatar);
+      const { user, token } = await db.register(username, password, avatar);
 
       const headers = {};
       if (allowCookies) {
@@ -197,14 +194,14 @@ async function handleApiRequest(req, res) {
   if (req.method === 'POST' && apiPath === '/api/avatar') {
     try {
       const token = getSessionToken(req);
-      const user = token ? db.validateSession(token) : null;
+      const user = token ? await db.validateSession(token) : null;
       if (!user) {
         sendJson(res, 401, { ok: false, error: 'Unauthorized. Please sign in.' });
         return true;
       }
 
       const { avatar } = await parseJsonBody(req);
-      const updatedUser = db.updateAvatar(user.id, avatar);
+      const updatedUser = await db.updateAvatar(user.id, avatar);
       sendJson(res, 200, { ok: true, user: updatedUser });
       return true;
     } catch (err) {
@@ -218,7 +215,7 @@ async function handleApiRequest(req, res) {
     try {
       const { username, email, password, allowCookies } = await parseJsonBody(req);
       const loginIdentifier = username || email;
-      const { user, token } = db.login(loginIdentifier, password);
+      const { user, token } = await db.login(loginIdentifier, password);
 
       const headers = {};
       if (allowCookies) {
@@ -236,7 +233,7 @@ async function handleApiRequest(req, res) {
   // 5. POST /api/logout
   if (req.method === 'POST' && apiPath === '/api/logout') {
     const token = getSessionToken(req);
-    if (token) db.destroySession(token);
+    if (token) await db.destroySession(token);
     sendJson(res, 200, { ok: true }, {
       'Set-Cookie': 'randoo_session=; Path=/; Max-Age=0; SameSite=Lax'
     });
@@ -246,7 +243,7 @@ async function handleApiRequest(req, res) {
   // 6. GET /api/me (Current Authenticated User)
   if (req.method === 'GET' && apiPath === '/api/me') {
     const token = getSessionToken(req);
-    const user = token ? db.validateSession(token) : null;
+    const user = token ? await db.validateSession(token) : null;
     sendJson(res, 200, { ok: true, user });
     return true;
   }
@@ -255,14 +252,14 @@ async function handleApiRequest(req, res) {
   if (req.method === 'POST' && apiPath === '/api/stats') {
     try {
       const token = getSessionToken(req);
-      const user = token ? db.validateSession(token) : null;
+      const user = token ? await db.validateSession(token) : null;
       if (!user) {
         sendJson(res, 200, { ok: false, message: 'Guest session — stats kept in local cache' });
         return true;
       }
 
       const statsPayload = await parseJsonBody(req);
-      const updatedUser = db.syncUserStats(user.id, statsPayload);
+      const updatedUser = await db.syncUserStats(user.id, statsPayload);
       sendJson(res, 200, { ok: true, user: updatedUser });
       return true;
     } catch (err) {
@@ -275,7 +272,7 @@ async function handleApiRequest(req, res) {
   if (req.method === 'GET' && apiPath === '/api/leaderboard') {
     const sortBy = (parsedUrl.query && parsedUrl.query.sort) || 'wins';
     const limit = parseInt(parsedUrl.query && parsedUrl.query.limit, 10) || 25;
-    const leaderboard = db.getLeaderboard(sortBy, limit);
+    const leaderboard = await db.getLeaderboard(sortBy, limit);
     sendJson(res, 200, { ok: true, sortBy, leaderboard });
     return true;
   }
@@ -283,6 +280,14 @@ async function handleApiRequest(req, res) {
   // Unknown API route
   sendJson(res, 404, { ok: false, error: `API route ${apiPath} not found` });
   return true;
+}
+
+async function handleApiRequest(req, res) {
+  try { return await dispatchApiRequest(req, res); }
+  catch (error) {
+    sendJson(res, 503, { ok: false, error: 'Account service unavailable. Please try again later.' });
+    return true;
+  }
 }
 
 module.exports = {

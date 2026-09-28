@@ -150,7 +150,6 @@ function recordDicePlayed() {
     if (!profile.games) profile.games = {};
     if (!profile.games.dice) profile.games.dice = { played: 0, wins: 0 };
     profile.games.dice.played++;
-    profile.totalPlayed = (profile.totalPlayed || 0) + 1;
     localStorage.setItem('randoo_arcade_profile', JSON.stringify(profile));
   } catch (e) {}
 }

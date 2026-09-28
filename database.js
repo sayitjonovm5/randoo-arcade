@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { normalize: rankedStats } = require('./frontend/ranked-stats');
 const DATA_RESET_VERSION = '2026-09-28-accounts-reset';
 
 // Zero-dependency environment variable loader
@@ -311,7 +312,7 @@ class EncryptedArcadeDB {
       avatar: user.avatar || null,
       createdAt: user.createdAt,
       lastActive: user.lastActive,
-      stats: user.stats
+      stats: rankedStats(user.stats)
     };
   }
 
@@ -324,18 +325,9 @@ class EncryptedArcadeDB {
     if (!clientStats || typeof clientStats !== 'object') return this.sanitizeUser(user);
 
     user.lastActive = new Date().toISOString();
-    const uStats = user.stats;
-
-    // Merge total numbers
-    uStats.totalPlayed = Math.max(uStats.totalPlayed || 0, clientStats.totalPlayed || 0);
-    uStats.totalWins = Math.max(uStats.totalWins || 0, clientStats.totalWins || 0);
-
-    // Merge best reaction time (lower is better, ignoring 0 or null)
-    if (typeof clientStats.bestReactionMs === 'number' && clientStats.bestReactionMs > 0) {
-      if (!uStats.bestReactionMs || clientStats.bestReactionMs < uStats.bestReactionMs) {
-        uStats.bestReactionMs = Math.round(clientStats.bestReactionMs);
-      }
-    }
+    const uStats = rankedStats(user.stats);
+    user.stats = uStats;
+    clientStats = rankedStats(clientStats);
 
     // Merge individual games
     if (clientStats.games && typeof clientStats.games === 'object') {
@@ -353,6 +345,7 @@ class EncryptedArcadeDB {
       }
     }
 
+    user.stats = rankedStats(uStats);
     this.save();
     return this.sanitizeUser(user);
   }
@@ -361,7 +354,7 @@ class EncryptedArcadeDB {
 
   getLeaderboard(sortBy = 'wins', limit = 25) {
     const list = this.data.users.filter(u => !u.isBot).map(u => {
-      const stats = u.stats || {};
+      const stats = rankedStats(u.stats);
       const completed = stats.totalPlayed || 0;
       const wins = stats.totalWins || 0;
       const winRate = completed > 0 ? Math.round((wins / completed) * 100) : 0;
@@ -372,7 +365,6 @@ class EncryptedArcadeDB {
         avatar: u.avatar || null,
         totalWins: wins,
         totalPlayed: completed,
-        bestReactionMs: stats.bestReactionMs || null,
         winRate: winRate,
         lastActive: u.lastActive
       };
@@ -380,13 +372,6 @@ class EncryptedArcadeDB {
 
     if (sortBy === 'played') {
       list.sort((a, b) => b.totalPlayed - a.totalPlayed || b.totalWins - a.totalWins);
-    } else if (sortBy === 'reaction') {
-      list.sort((a, b) => {
-        if (a.bestReactionMs === null && b.bestReactionMs === null) return 0;
-        if (a.bestReactionMs === null) return 1;
-        if (b.bestReactionMs === null) return -1;
-        return a.bestReactionMs - b.bestReactionMs;
-      });
     } else {
       // Default: wins
       list.sort((a, b) => b.totalWins - a.totalWins || b.winRate - a.winRate || b.totalPlayed - a.totalPlayed);

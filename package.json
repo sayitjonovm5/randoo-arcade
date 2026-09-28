@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node scratch/test_no_email_auth.js"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [
     "arcade",
@@ -15,5 +15,11 @@
     "javascript"
   ],
   "author": "Muhammadziyo Sayitjonov",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  }
 }

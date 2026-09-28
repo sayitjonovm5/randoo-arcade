@@ -193,7 +193,7 @@ const STATS_KEY = 'randoo_arcade_profile';
 function getArcadeProfile() {
   try {
     const raw = localStorage.getItem(STATS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return RankedStats.normalize(JSON.parse(raw));
   } catch (e) {}
   return {
     totalPlayed: 0,
@@ -428,8 +428,9 @@ class ClientEncryptedVault {
   getLeaderboard(sortBy = 'wins', limit = 25) {
     const data = this.load();
     const list = Object.values(data.users).map(u => {
-      const played = u.stats?.totalPlayed || 0;
-      const wins = u.stats?.totalWins || 0;
+      const ranked = RankedStats.normalize(u.stats);
+      const played = ranked.totalPlayed;
+      const wins = ranked.totalWins;
       const rate = played > 0 ? Math.round((wins / played) * 100) : 0;
       return {
         id: u.id,
@@ -501,7 +502,7 @@ class ClientEncryptedVault {
   }
 
   sanitize(user) {
-    const copy = { ...user };
+    const copy = { ...user, stats: RankedStats.normalize(user.stats) };
     delete copy.passwordHash;
     delete copy.salt;
     return copy;
@@ -718,9 +719,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isHttp) throw new Error('Static/file context');
 
     try {
-      const res = await fetch(endpoint, options);
-      if (res.ok) return await res.json();
-    } catch (e) {}
+      const res = await fetch(endpoint, { ...options, cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) { const error = new Error(data.error || 'Account service unavailable.'); error.apiResponse = true; throw error; }
+      return data;
+    } catch (e) { if (e.apiResponse) throw e; }
 
     // Only fallback to localhost:8085 when developing locally, avoiding Mixed-Content on Vercel
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -736,7 +739,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getAuthHeaders() {
     const headers = { 'Content-Type': 'application/json' };
-    const token = sessionStorage.getItem('randoo_session_token');
+    let token = sessionStorage.getItem('randoo_session_token');
+    if (!token) {
+      try { token = JSON.parse(localStorage.getItem('randoo_active_session'))?.token; } catch (e) {}
+    }
     if (token) headers['Authorization'] = `Bearer ${token}`;
     return headers;
   }
@@ -802,9 +808,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function selectAccount(user) {
+    const ownerKey = 'randoo_profile_owner';
+    if (localStorage.getItem(ownerKey) !== user.id) {
+      localStorage.setItem(STATS_KEY, JSON.stringify(RankedStats.normalize(user.stats)));
+    }
+    localStorage.setItem(ownerKey, user.id);
+    currentUser = user;
+  }
+
   // Sync Stats to Vault & Backend
   async function syncStatsToBackend() {
     if (!currentUser) return;
+    if (localStorage.getItem('randoo_profile_owner') !== currentUser.id && window.location.protocol !== 'file:') return;
     const local = getArcadeProfile();
     vault.syncUserStats(currentUser.id, local);
 
@@ -848,7 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      localStorage.setItem(STATS_KEY, JSON.stringify(local));
+      localStorage.setItem(STATS_KEY, JSON.stringify(RankedStats.normalize(local)));
     } catch (e) {}
   }
 
@@ -862,12 +878,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (profile.games) {
       const g = profile.games;
       let calculatedPlayed = (g.rps?.played || 0) + (g.ttt?.played || 0) + (g.guess?.played || 0) + 
-                             (g.dice?.played || 0) + (g.hangman?.played || 0) + (g.rtt?.played || 0);
+                             (g.hangman?.played || 0);
       let calculatedWins = (g.rps?.wins || 0) + (g.ttt?.wins || 0) + (g.guess?.wins || 0) + 
-                           (g.dice?.wins || 0) + (g.hangman?.wins || 0);
+                           (g.hangman?.wins || 0);
 
-      totalPlayed = Math.max(totalPlayed, calculatedPlayed);
-      totalWins = Math.max(totalWins, calculatedWins);
+      totalPlayed = calculatedPlayed;
+      totalWins = calculatedWins;
 
       if (statCardRPS) statCardRPS.textContent = g.rps?.played || 0;
       if (statCardTTT) statCardTTT.textContent = g.ttt?.played || 0;
@@ -895,7 +911,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let maxPlayed = 0;
       let topGame = totalPlayed > 0 ? 'Rock Paper Scissors' : '--';
       for (const [key, val] of Object.entries(g)) {
-        if (val.played > maxPlayed) {
+        if (RankedStats.games.includes(key) && val.played > maxPlayed) {
           maxPlayed = val.played;
           topGame = gameNames[key] || topGame;
         }
@@ -917,7 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Session Check
   async function checkSession() {
-    const localUser = vault.restoreSession();
+    const localUser = window.location.protocol === 'file:' ? vault.restoreSession() : null;
     if (localUser) {
       currentUser = localUser;
       syncLocalWithRemote(currentUser.stats);
@@ -930,11 +946,18 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: getAuthHeaders(),
         credentials: 'include'
       });
+      if (data && data.ok && !data.user) {
+        vault.clearSession();
+        currentUser = null;
+        updateUserUI();
+      }
       if (data && data.ok && data.user) {
-        currentUser = data.user;
+        selectAccount(data.user);
         syncLocalWithRemote(currentUser.stats);
         updateUserUI();
         renderStats();
+        await syncStatsToBackend();
+        fetchLeaderboard(activeLbSort);
       }
     } catch (e) {}
   }
@@ -1213,6 +1236,7 @@ document.addEventListener('DOMContentLoaded', () => {
       authSubmitText.textContent = authMode === 'register' ? 'Creating...' : 'Signing In...';
 
       let authResult = null;
+      let authFailure = '';
 
       try {
         const endpoint = authMode === 'register' ? '/api/register' : '/api/login';
@@ -1231,9 +1255,16 @@ document.addEventListener('DOMContentLoaded', () => {
           authResult = data;
         }
       } catch (networkErr) {
-        // Fallback to client vault
+        authFailure = networkErr.message;
       }
 
+      if (!authResult && window.location.protocol !== 'file:') {
+        authErrorMsg.textContent = authFailure || 'Account service unavailable. Please try again later.';
+        authErrorMsg.classList.remove('hidden');
+        authSubmitBtn.disabled = false;
+        authSubmitText.textContent = authMode === 'register' ? 'Create Account' : 'Sign In';
+        return;
+      }
       if (!authResult) {
         try {
           if (authMode === 'register') {
@@ -1252,7 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (authResult && authResult.user) {
-        currentUser = authResult.user;
+        selectAccount(authResult.user);
         vault.saveSession(currentUser, authResult.token, allowCookies);
 
         authSuccessMsg.textContent = authMode === 'register' ? 'Account created successfully!' : 'Signed in successfully!';
@@ -1288,30 +1319,48 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
 
       vault.clearSession();
+      localStorage.removeItem(STATS_KEY);
+      localStorage.removeItem('randoo_profile_owner');
       currentUser = null;
+      renderStats();
       updateUserUI();
       if (userDropdown) userDropdown.classList.add('hidden');
       fetchLeaderboard(activeLbSort);
     });
   }
 
-  // Leaderboard System
+  // Online rankings always come from the shared server database.
+  let leaderboardRequest = 0;
   async function fetchLeaderboard(sort = 'wins') {
     activeLbSort = sort;
-
-    const localLeaderboard = vault.getLeaderboard(sort);
-    renderLeaderboardRows(localLeaderboard);
-
+    const request = ++leaderboardRequest;
+    if (window.location.protocol === 'file:') {
+      renderLeaderboardRows(vault.getLeaderboard(sort));
+      return;
+    }
+    if (leaderboardLoading) {
+      leaderboardLoading.textContent = 'Loading rankings...';
+      leaderboardLoading.classList.remove('hidden');
+    }
     try {
-      const data = await apiFetch(`/api/leaderboard?sort=${sort}&limit=25`);
-      if (data && data.ok && Array.isArray(data.leaderboard)) {
-        renderLeaderboardRows(data.leaderboard);
+      const data = await apiFetch('/api/leaderboard?sort=' + sort + '&limit=25');
+      if (request !== leaderboardRequest) return;
+      if (!data.ok || !Array.isArray(data.leaderboard)) throw new Error('Invalid rankings');
+      renderLeaderboardRows(data.leaderboard);
+    } catch (e) {
+      if (request !== leaderboardRequest) return;
+      if (leaderboardBody) leaderboardBody.innerHTML = '';
+      if (leaderboardEmpty) leaderboardEmpty.classList.add('hidden');
+      if (leaderboardLoading) {
+        leaderboardLoading.textContent = 'Leaderboard unavailable. Please try again later.';
+        leaderboardLoading.classList.remove('hidden');
       }
-    } catch (e) {}
+    }
   }
 
   function renderLeaderboardRows(players) {
     if (!leaderboardBody) return;
+    if (leaderboardLoading) leaderboardLoading.classList.add('hidden');
     if (!players || players.length === 0) {
       if (leaderboardEmpty) leaderboardEmpty.classList.remove('hidden');
       leaderboardBody.innerHTML = '';
@@ -1335,7 +1384,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const isYou = currentUser && (currentUser.username.toLowerCase() === p.username.toLowerCase());
       const youBadge = isYou ? '<span class="player-tag-you">YOU</span>' : '';
-      const reflexText = p.bestReactionMs ? `${Math.round(p.bestReactionMs)} ms` : '--';
       const winRate = p.winRate || 0;
 
       return `
@@ -1360,7 +1408,6 @@ document.addEventListener('DOMContentLoaded', () => {
               <span>${winRate}%</span>
             </span>
           </td>
-          <td class="col-reflex reflex-cell">${reflexText}</td>
         </tr>
       `;
     }).join('');

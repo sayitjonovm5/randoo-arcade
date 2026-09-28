@@ -99,10 +99,6 @@
                 <span class="drop-stat-val" id="dropStatPlayed">0</span>
                 <span class="drop-stat-lbl">Played</span>
               </div>
-              <div class="drop-stat">
-                <span class="drop-stat-val" id="dropStatReflex">--</span>
-                <span class="drop-stat-lbl">Reflex</span>
-              </div>
             </div>
             <div class="user-dropdown-divider"></div>
             <button id="logoutBtn" class="dropdown-item danger">
@@ -132,10 +128,6 @@
         <div class="stat-card">
           <span class="stat-value" id="statTotalWins">0</span>
           <span class="stat-label">Total Victories</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-value" id="statBestReaction">--</span>
-          <span class="stat-label">Best Reaction (ms)</span>
         </div>
         <div class="stat-card">
           <span class="stat-value" id="statFavoriteGame">Rock Paper Scissors</span>
@@ -281,7 +273,7 @@
               <span class="tag">📈 Roll Stats</span>
             </div>
             <div class="card-footer">
-              <div class="card-stat" id="statCardDice">Played: <span>0</span></div>
+              <div class="card-stat">Unranked</div>
               <a href="roll%20the%20dice/index.html" class="play-btn">
                 <span>Play Now</span>
                 <span class="arrow">→</span>
@@ -345,7 +337,7 @@
               <span class="tag">🏆 Esports Rank</span>
             </div>
             <div class="card-footer">
-              <div class="card-stat" id="statCardRTT">Best: <span>--</span></div>
+              <div class="card-stat">Unranked</div>
               <a href="rtt/index.html" class="play-btn">
                 <span>Play Now</span>
                 <span class="arrow">→</span>
@@ -366,7 +358,7 @@
         <div class="hero-badge">🏆 ENCRYPTED ARCADE NETWORK</div>
         <h2 class="section-title">Global <span class="gradient-text">Hall of Fame</span></h2>
         <p class="section-desc">
-          Live public leaderboard saved and verified in our encrypted database. Compete for the #1 rank across all 6 mini-games!
+          Live public leaderboard saved and verified in our encrypted database. Rankings count Rock Paper Scissors, Tic-Tac-Toe, Number Guesser, and Hangman. Dice and Reaction are unranked.
         </p>
       </div>
 
@@ -378,9 +370,6 @@
             </button>
             <button class="lb-tab" data-sort="played" role="tab" aria-selected="false">
               <span>🎮</span> Games Played
-            </button>
-            <button class="lb-tab" data-sort="reaction" role="tab" aria-selected="false">
-              <span>⏱️</span> Reflex Speed
             </button>
           </div>
           <button id="refreshLbBtn" class="action-btn small" title="Refresh Leaderboard">
@@ -397,7 +386,6 @@
                 <th class="col-wins">Total Wins</th>
                 <th class="col-played">Played</th>
                 <th class="col-rate">Win Rate</th>
-                <th class="col-reflex">Best Reflex</th>
               </tr>
             </thead>
             <tbody id="leaderboardBody">
@@ -555,6 +543,7 @@
     </div>
   </div>
 
+  <script src="ranked-stats.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -157,7 +157,6 @@ function saveRTTScore(scoreMs, isFullBenchmark = false) {
 
     // Increment played counters
     profile.games.rtt.played = (profile.games.rtt.played || 0) + 1;
-    profile.totalPlayed = (profile.totalPlayed || 0) + 1;
 
     // Check personal best (lower ms is better!)
     const currentBest = profile.games.rtt.bestMs;
