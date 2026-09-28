@@ -210,537 +210,325 @@ function getArcadeProfile() {
   };
 }
 
-// Main Hub Controller
-document.addEventListener('DOMContentLoaded', () => {
-  const audio = new ArcadeAudio();
+// ==========================================
+// CLIENT ENCRYPTED DATABASE VAULT (HYBRID ARCHITECTURE)
+// Works seamlessly on Node server, Live Server, file://, Netlify, and Vercel
+// ==========================================
+class ClientEncryptedVault {
+  constructor() {
+    this.storageKey = 'randoo_encrypted_vault';
+    this.sessionKey = 'randoo_active_session';
+    this.secret = 'randoo_arcade_master_vault_key_2026';
+    this.init();
+  }
 
-  // Theme Engine (Dark + Light)
-  const themeToggleBtn = document.getElementById('themeToggleBtn');
-  const themeIcon = document.getElementById('themeIcon');
-  const themeText = document.getElementById('themeText');
-
-  let bgEngine = null;
-  let currentTheme = localStorage.getItem('randoo_theme') || 'dark';
-
-  function applyTheme(theme) {
-    currentTheme = theme;
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('randoo_theme', theme);
-
-    if (themeIcon && themeText) {
-      if (theme === 'light') {
-        themeIcon.textContent = '☀️';
-        themeText.textContent = 'Light';
-        if (themeToggleBtn) themeToggleBtn.title = 'Switch to Dark Theme';
-      } else {
-        themeIcon.textContent = '🌙';
-        themeText.textContent = 'Dark';
-        if (themeToggleBtn) themeToggleBtn.title = 'Switch to Light Theme';
-      }
+  hashPassword(password, salt) {
+    let hash = 0x811c9dc5;
+    const combined = salt + ':' + password + ':randoo_entropy_token';
+    for (let i = 0; i < combined.length; i++) {
+      hash ^= combined.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
     }
-    if (bgEngine) bgEngine.setTheme(theme === 'dark');
+    const part1 = ('0000000' + (hash >>> 0).toString(16)).slice(-8);
+    const part2 = ('0000000' + (Math.imul(hash, 0x5bd1e995) >>> 0).toString(16)).slice(-8);
+    const part3 = ('0000000' + (Math.imul(hash, 0x27d4eb2f) >>> 0).toString(16)).slice(-8);
+    const part4 = ('0000000' + (Math.imul(hash, 0x165667b1) >>> 0).toString(16)).slice(-8);
+    return part1 + part2 + part3 + part4;
   }
 
-  // Initialize theme
-  applyTheme(currentTheme);
-
-  // Animated Background Engine
-  const bgCanvas = document.getElementById('arcadeBgCanvas');
-  if (bgCanvas) {
-    bgEngine = new ArcadeBackgroundEngine(bgCanvas);
-    bgEngine.setTheme(currentTheme === 'dark');
-  }
-
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
-      applyTheme(nextTheme);
-      audio.playPop();
-    });
-  }
-
-  // Elements
-  const soundToggleBtn = document.getElementById('soundToggleBtn');
-  const soundIcon = document.getElementById('soundIcon');
-  const resetStatsBtn = document.getElementById('resetStatsBtn');
-  const statTotalPlayed = document.getElementById('statTotalPlayed');
-  const statTotalWins = document.getElementById('statTotalWins');
-  const statBestReaction = document.getElementById('statBestReaction');
-  const statFavoriteGame = document.getElementById('statFavoriteGame');
-  const filterTabs = document.querySelectorAll('.filter-tab');
-  const searchInput = document.getElementById('gameSearch');
-  const gameCards = document.querySelectorAll('.game-card');
-  const noResultsMsg = document.getElementById('noResultsMsg');
-
-  // Individual Card Stat Elements
-  const statCardRPS = document.querySelector('#statCardRPS span');
-  const statCardTTT = document.querySelector('#statCardTTT span');
-  const statCardGuess = document.querySelector('#statCardGuess span');
-  const statCardDice = document.querySelector('#statCardDice span');
-  const statCardHangman = document.querySelector('#statCardHangman span');
-  const statCardRTT = document.querySelector('#statCardRTT span');
-
-  // Sound Button UI Init
-  function updateSoundUI() {
-    if (audio.isMuted) {
-      soundIcon.textContent = '🔇';
-      soundToggleBtn.classList.add('muted');
-    } else {
-      soundIcon.textContent = '🔊';
-      soundToggleBtn.classList.remove('muted');
-    }
-  }
-  updateSoundUI();
-
-  soundToggleBtn.addEventListener('click', () => {
-    const isMuted = audio.toggleMute();
-    updateSoundUI();
-    if (!isMuted) audio.playPop();
-  });
-
-  // Render Stats in Real-Time
-  function renderStats() {
-    const profile = getArcadeProfile();
-
-    let totalPlayed = profile.totalPlayed || 0;
-    let totalWins = profile.totalWins || 0;
-
-    if (profile.games) {
-      const g = profile.games;
-      let calculatedPlayed = (g.rps?.played || 0) + (g.ttt?.played || 0) + (g.guess?.played || 0) + 
-                             (g.dice?.played || 0) + (g.hangman?.played || 0) + (g.rtt?.played || 0);
-      let calculatedWins = (g.rps?.wins || 0) + (g.ttt?.wins || 0) + (g.guess?.wins || 0) + 
-                           (g.dice?.wins || 0) + (g.hangman?.wins || 0);
-
-      totalPlayed = Math.max(totalPlayed, calculatedPlayed);
-      totalWins = Math.max(totalWins, calculatedWins);
-
-      // Card-specific updates
-      if (statCardRPS) statCardRPS.textContent = g.rps?.played || 0;
-      if (statCardTTT) statCardTTT.textContent = g.ttt?.played || 0;
-      if (statCardGuess) statCardGuess.textContent = g.guess?.played || 0;
-      if (statCardDice) statCardDice.textContent = g.dice?.played || 0;
-      if (statCardHangman) statCardHangman.textContent = g.hangman?.played || 0;
-
-      // REACTION TIME TEST SCORE RETRIEVAL
-      const rttBest = profile.games?.rtt?.bestMs || profile.bestReactionMs;
-      if (statCardRTT) {
-        statCardRTT.textContent = rttBest ? `${Math.round(rttBest)} ms` : '--';
+  encrypt(data) {
+    try {
+      const json = JSON.stringify(data);
+      const iv = Math.random().toString(36).slice(2, 10);
+      let hex = '';
+      for (let i = 0; i < json.length; i++) {
+        const k = this.secret.charCodeAt(i % this.secret.length) ^ iv.charCodeAt(i % iv.length);
+        const c = json.charCodeAt(i) ^ k;
+        hex += ('00' + c.toString(16)).slice(-2);
       }
-      if (statBestReaction) {
-        statBestReaction.textContent = rttBest ? `${Math.round(rttBest)}` : '--';
-      }
-
-      // Calculate Favorite / Top Played
-      const gameNames = {
-        rps: 'Rock Paper Scissors',
-        ttt: 'Tic-Tac-Toe',
-        guess: 'Number Guesser',
-        dice: 'Roll The Dice',
-        hangman: 'Hangman Quest',
-        rtt: 'Reaction Time Test'
-      };
-
-      let maxPlayed = 0;
-      let topGame = totalPlayed > 0 ? 'Rock Paper Scissors' : '--';
-      for (const [key, val] of Object.entries(g)) {
-        if (val.played > maxPlayed) {
-          maxPlayed = val.played;
-          topGame = gameNames[key] || topGame;
-        }
-      }
-      if (statFavoriteGame) statFavoriteGame.textContent = topGame;
-    }
-
-    if (statTotalPlayed) statTotalPlayed.textContent = totalPlayed;
-    if (statTotalWins) statTotalWins.textContent = totalWins;
-
-    if (currentUser) {
-      if (dropStatWins) dropStatWins.textContent = totalWins;
-      if (dropStatPlayed) dropStatPlayed.textContent = totalPlayed;
-      const reflex = profile.games?.rtt?.bestMs || profile.bestReactionMs;
-      if (dropStatReflex) dropStatReflex.textContent = reflex ? `${Math.round(reflex)}ms` : '--';
-      syncStatsToBackend();
+      return iv + ':' + hex;
+    } catch (e) {
+      return null;
     }
   }
 
-  renderStats();
-
-  // Re-check stats whenever page becomes visible or focused (e.g. returning from games)
-  window.addEventListener('pageshow', () => {
-    renderStats();
-    if (typeof fetchLeaderboard === 'function') fetchLeaderboard(activeLbSort);
-  });
-  window.addEventListener('focus', () => {
-    renderStats();
-    if (typeof fetchLeaderboard === 'function') fetchLeaderboard(activeLbSort);
-  });
-  window.addEventListener('storage', renderStats);
-
-  // Reset Stats Button
-  resetStatsBtn.addEventListener('click', () => {
-    audio.playClick();
-    if (confirm('Are you sure you want to reset all arcade scores and play history?')) {
-      localStorage.removeItem(STATS_KEY);
-      renderStats();
-    }
-  });
-
-  // Filter Tabs
-  let activeFilter = 'all';
-
-  function applyFilters() {
-    const query = searchInput.value.trim().toLowerCase();
-    let visibleCount = 0;
-
-    gameCards.forEach(card => {
-      const categories = card.getAttribute('data-category').toLowerCase();
-      const text = card.textContent.toLowerCase();
-
-      const matchesCategory = (activeFilter === 'all') || categories.includes(activeFilter);
-      const matchesSearch = query === '' || text.includes(query);
-
-      if (matchesCategory && matchesSearch) {
-        card.classList.remove('hidden');
-        visibleCount++;
-      } else {
-        card.classList.add('hidden');
+  decrypt(ciphertext) {
+    try {
+      if (!ciphertext || !ciphertext.includes(':')) return null;
+      const [iv, hex] = ciphertext.split(':');
+      let json = '';
+      for (let i = 0; i < hex.length; i += 2) {
+        const c = parseInt(hex.substr(i, 2), 16);
+        const k = this.secret.charCodeAt((i / 2) % this.secret.length) ^ iv.charCodeAt((i / 2) % iv.length);
+        json += String.fromCharCode(c ^ k);
       }
-    });
-
-    if (visibleCount === 0) {
-      noResultsMsg.classList.remove('hidden');
-    } else {
-      noResultsMsg.classList.add('hidden');
+      return JSON.parse(json);
+    } catch (e) {
+      return null;
     }
   }
 
-  filterTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      audio.playPop();
-      filterTabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      activeFilter = tab.getAttribute('data-category');
-      applyFilters();
-    });
-  });
-
-  // Search Input with Real-time Filter
-  searchInput.addEventListener('input', applyFilters);
-
-  // Button Hover Sounds & Card Click Feedback
-  document.querySelectorAll('.play-btn, .card-media, .action-btn, .filter-tab').forEach(btn => {
-    btn.addEventListener('mouseenter', () => audio.playPop());
-  });
-  document.querySelectorAll('.play-btn, .card-media').forEach(btn => {
-    btn.addEventListener('click', () => audio.playClick());
-  });
-
-  // ==========================================
-  // UNIVERSAL HYBRID ENCRYPTED DATABASE & LEADERBOARD SYSTEM
-  // Works seamlessly on Node server, Live Server, file://, Netlify, and Vercel
-  // ==========================================
-
-  class ClientEncryptedVault {
-    constructor() {
-      this.storageKey = 'randoo_encrypted_vault';
-      this.sessionKey = 'randoo_active_session';
-      this.secret = 'randoo_arcade_master_vault_key_2026';
-      this.init();
-    }
-
-    hashPassword(password, salt) {
-      let hash = 0x811c9dc5;
-      const combined = salt + ':' + password + ':randoo_entropy_token';
-      for (let i = 0; i < combined.length; i++) {
-        hash ^= combined.charCodeAt(i);
-        hash = Math.imul(hash, 0x01000193);
+  load() {
+    try {
+      const raw = localStorage.getItem(this.storageKey);
+      if (raw) {
+        const data = this.decrypt(raw);
+        if (data && data.users) return data;
       }
-      const part1 = ('0000000' + (hash >>> 0).toString(16)).slice(-8);
-      const part2 = ('0000000' + (Math.imul(hash, 0x5bd1e995) >>> 0).toString(16)).slice(-8);
-      const part3 = ('0000000' + (Math.imul(hash, 0x27d4eb2f) >>> 0).toString(16)).slice(-8);
-      const part4 = ('0000000' + (Math.imul(hash, 0x165667b1) >>> 0).toString(16)).slice(-8);
-      return part1 + part2 + part3 + part4;
-    }
+    } catch (e) {}
+    return this.seedInitial();
+  }
 
-    encrypt(data) {
-      try {
-        const json = JSON.stringify(data);
-        const iv = Math.random().toString(36).slice(2, 10);
-        let hex = '';
-        for (let i = 0; i < json.length; i++) {
-          const k = this.secret.charCodeAt(i % this.secret.length) ^ iv.charCodeAt(i % iv.length);
-          const c = json.charCodeAt(i) ^ k;
-          hex += ('00' + c.toString(16)).slice(-2);
-        }
-        return iv + ':' + hex;
-      } catch (e) {
-        return null;
-      }
-    }
+  save(data) {
+    try {
+      const enc = this.encrypt(data);
+      if (enc) localStorage.setItem(this.storageKey, enc);
+    } catch (e) {}
+  }
 
-    decrypt(ciphertext) {
-      try {
-        if (!ciphertext || !ciphertext.includes(':')) return null;
-        const [iv, hex] = ciphertext.split(':');
-        let json = '';
-        for (let i = 0; i < hex.length; i += 2) {
-          const c = parseInt(hex.substr(i, 2), 16);
-          const k = this.secret.charCodeAt((i / 2) % this.secret.length) ^ iv.charCodeAt((i / 2) % iv.length);
-          json += String.fromCharCode(c ^ k);
-        }
-        return JSON.parse(json);
-      } catch (e) {
-        return null;
-      }
-    }
-
-    load() {
-      try {
-        const raw = localStorage.getItem(this.storageKey);
-        if (raw) {
-          const data = this.decrypt(raw);
-          if (data && data.users) return data;
-        }
-      } catch (e) {}
-      return this.seedInitial();
-    }
-
-    save(data) {
-      try {
-        const enc = this.encrypt(data);
-        if (enc) localStorage.setItem(this.storageKey, enc);
-      } catch (e) {}
-    }
-
-    seedInitial() {
-      const initial = {
-        users: {
-          'neo@arcade.net': {
-            id: 'champ_1',
-            username: 'NeoGamer',
-            email: 'neo@arcade.net',
-            passwordHash: this.hashPassword('NeoPass123!', 'salt_1'),
-            salt: 'salt_1',
-            stats: { totalWins: 48, totalPlayed: 62, bestReactionMs: 194, games: { rps: { played: 25, wins: 20 }, rtt: { played: 15, bestMs: 194 } } }
-          },
-          'cyber@arcade.net': {
-            id: 'champ_2',
-            username: 'CyberPixel',
-            email: 'cyber@arcade.net',
-            passwordHash: this.hashPassword('CyberPass123!', 'salt_2'),
-            salt: 'salt_2',
-            stats: { totalWins: 39, totalPlayed: 55, bestReactionMs: 215, games: { ttt: { played: 20, wins: 15 }, rtt: { played: 10, bestMs: 215 } } }
-          },
-          'ninja@arcade.net': {
-            id: 'champ_3',
-            username: 'PixelNinja',
-            email: 'ninja@arcade.net',
-            passwordHash: this.hashPassword('NinjaPass123!', 'salt_3'),
-            salt: 'salt_3',
-            stats: { totalWins: 31, totalPlayed: 42, bestReactionMs: 240, games: { guess: { played: 18, wins: 12 }, rtt: { played: 8, bestMs: 240 } } }
-          },
-          'speed@arcade.net': {
-            id: 'champ_4',
-            username: 'QuantumSpeed',
-            email: 'speed@arcade.net',
-            passwordHash: this.hashPassword('SpeedPass123!', 'salt_4'),
-            salt: 'salt_4',
-            stats: { totalWins: 26, totalPlayed: 35, bestReactionMs: 178, games: { rtt: { played: 20, bestMs: 178 } } }
-          },
-          'viper@arcade.net': {
-            id: 'champ_5',
-            username: 'RetroViper',
-            email: 'viper@arcade.net',
-            passwordHash: this.hashPassword('ViperPass123!', 'salt_5'),
-            salt: 'salt_5',
-            stats: { totalWins: 19, totalPlayed: 30, bestReactionMs: 265, games: { dice: { played: 14, wins: 9 }, rtt: { played: 5, bestMs: 265 } } }
-          }
-        }
-      };
-      this.save(initial);
-      return initial;
-    }
-
-    init() {
-      this.load();
-    }
-
-    register(username, email, password) {
-      const data = this.load();
-      const normEmail = email.toLowerCase().trim();
-      const normUser = username.trim();
-
-      if (data.users[normEmail]) {
-        throw new Error('An account with this email address already exists.');
-      }
-      for (const u of Object.values(data.users)) {
-        if (u.username.toLowerCase() === normUser.toLowerCase()) {
-          throw new Error('This username is already taken. Please choose another.');
-        }
-      }
-
-      const salt = Math.random().toString(36).slice(2, 10);
-      const passwordHash = this.hashPassword(password, salt);
-      const user = {
-        id: 'user_' + Math.random().toString(36).slice(2, 12),
-        username: normUser,
-        email: normEmail,
-        passwordHash,
-        salt,
-        stats: {
-          totalPlayed: 0,
-          totalWins: 0,
-          bestReactionMs: null,
-          games: {}
+  seedInitial() {
+    const initial = {
+      users: {
+        'neo@arcade.net': {
+          id: 'champ_1',
+          username: 'NeoGamer',
+          email: 'neo@arcade.net',
+          passwordHash: this.hashPassword('NeoPass123!', 'salt_1'),
+          salt: 'salt_1',
+          stats: { totalWins: 48, totalPlayed: 62, bestReactionMs: 194, games: { rps: { played: 25, wins: 20 }, rtt: { played: 15, bestMs: 194 } } }
         },
-        createdAt: new Date().toISOString()
-      };
+        'cyber@arcade.net': {
+          id: 'champ_2',
+          username: 'CyberPixel',
+          email: 'cyber@arcade.net',
+          passwordHash: this.hashPassword('CyberPass123!', 'salt_2'),
+          salt: 'salt_2',
+          stats: { totalWins: 39, totalPlayed: 55, bestReactionMs: 215, games: { ttt: { played: 20, wins: 15 }, rtt: { played: 10, bestMs: 215 } } }
+        },
+        'ninja@arcade.net': {
+          id: 'champ_3',
+          username: 'PixelNinja',
+          email: 'ninja@arcade.net',
+          passwordHash: this.hashPassword('NinjaPass123!', 'salt_3'),
+          salt: 'salt_3',
+          stats: { totalWins: 31, totalPlayed: 42, bestReactionMs: 240, games: { guess: { played: 18, wins: 12 }, rtt: { played: 8, bestMs: 240 } } }
+        },
+        'speed@arcade.net': {
+          id: 'champ_4',
+          username: 'QuantumSpeed',
+          email: 'speed@arcade.net',
+          passwordHash: this.hashPassword('SpeedPass123!', 'salt_4'),
+          salt: 'salt_4',
+          stats: { totalWins: 26, totalPlayed: 35, bestReactionMs: 178, games: { rtt: { played: 20, bestMs: 178 } } }
+        },
+        'viper@arcade.net': {
+          id: 'champ_5',
+          username: 'RetroViper',
+          email: 'viper@arcade.net',
+          passwordHash: this.hashPassword('ViperPass123!', 'salt_5'),
+          salt: 'salt_5',
+          stats: { totalWins: 19, totalPlayed: 30, bestReactionMs: 265, games: { dice: { played: 14, wins: 9 }, rtt: { played: 5, bestMs: 265 } } }
+        }
+      }
+    };
+    this.save(initial);
+    return initial;
+  }
 
-      data.users[normEmail] = user;
-      this.save(data);
+  init() {
+    this.load();
+  }
 
-      const token = 'token_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      return { user: this.sanitize(user), token };
+  register(username, email, password) {
+    const data = this.load();
+    const normEmail = email.toLowerCase().trim();
+    const normUser = username.trim();
+
+    if (data.users[normEmail]) {
+      throw new Error('An account with this email address already exists.');
+    }
+    for (const u of Object.values(data.users)) {
+      if (u.username.toLowerCase() === normUser.toLowerCase()) {
+        throw new Error('This username is already taken. Please choose another.');
+      }
     }
 
-    login(email, password) {
-      const data = this.load();
-      const normEmail = email.toLowerCase().trim();
-      const user = data.users[normEmail];
-      if (!user) {
-        throw new Error('No account found with this email. Please check your spelling or register.');
-      }
+    const salt = Math.random().toString(36).slice(2, 10);
+    const passwordHash = this.hashPassword(password, salt);
+    const user = {
+      id: 'user_' + Math.random().toString(36).slice(2, 12),
+      username: normUser,
+      email: normEmail,
+      passwordHash,
+      salt,
+      stats: {
+        totalPlayed: 0,
+        totalWins: 0,
+        bestReactionMs: null,
+        games: {}
+      },
+      createdAt: new Date().toISOString()
+    };
 
-      const hash = this.hashPassword(password, user.salt);
-      if (hash !== user.passwordHash) {
-        throw new Error('Incorrect password. Please try again.');
-      }
+    data.users[normEmail] = user;
+    this.save(data);
 
-      const token = 'token_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-      return { user: this.sanitize(user), token };
+    const token = 'token_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    return { user: this.sanitize(user), token };
+  }
+
+  login(email, password) {
+    const data = this.load();
+    const normEmail = email.toLowerCase().trim();
+    const user = data.users[normEmail];
+    if (!user) {
+      throw new Error('No account found with this email. Please check your spelling or register.');
     }
 
-    syncUserStats(userId, newStats) {
-      if (!userId || !newStats) return null;
-      const data = this.load();
-      for (const u of Object.values(data.users)) {
-        if (u.id === userId) {
-          u.stats.totalPlayed = Math.max(u.stats.totalPlayed || 0, newStats.totalPlayed || 0);
-          u.stats.totalWins = Math.max(u.stats.totalWins || 0, newStats.totalWins || 0);
-          if (newStats.bestReactionMs) {
-            if (!u.stats.bestReactionMs || newStats.bestReactionMs < u.stats.bestReactionMs) {
-              u.stats.bestReactionMs = newStats.bestReactionMs;
-            }
+    const hash = this.hashPassword(password, user.salt);
+    if (hash !== user.passwordHash) {
+      throw new Error('Incorrect password. Please try again.');
+    }
+
+    const token = 'token_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    return { user: this.sanitize(user), token };
+  }
+
+  syncUserStats(userId, newStats) {
+    if (!userId || !newStats) return null;
+    const data = this.load();
+    for (const u of Object.values(data.users)) {
+      if (u.id === userId) {
+        u.stats.totalPlayed = Math.max(u.stats.totalPlayed || 0, newStats.totalPlayed || 0);
+        u.stats.totalWins = Math.max(u.stats.totalWins || 0, newStats.totalWins || 0);
+        if (newStats.bestReactionMs) {
+          if (!u.stats.bestReactionMs || newStats.bestReactionMs < u.stats.bestReactionMs) {
+            u.stats.bestReactionMs = newStats.bestReactionMs;
           }
-          if (newStats.games) {
-            u.stats.games = u.stats.games || {};
-            for (const [k, v] of Object.entries(newStats.games)) {
-              if (!u.stats.games[k]) {
-                u.stats.games[k] = { played: v.played || 0, wins: v.wins || 0, bestMs: v.bestMs || null };
-              } else {
-                u.stats.games[k].played = Math.max(u.stats.games[k].played || 0, v.played || 0);
-                u.stats.games[k].wins = Math.max(u.stats.games[k].wins || 0, v.wins || 0);
-                if (v.bestMs) {
-                  u.stats.games[k].bestMs = u.stats.games[k].bestMs ? Math.min(u.stats.games[k].bestMs, v.bestMs) : v.bestMs;
-                }
+        }
+        if (newStats.games) {
+          u.stats.games = u.stats.games || {};
+          for (const [k, v] of Object.entries(newStats.games)) {
+            if (!u.stats.games[k]) {
+              u.stats.games[k] = { played: v.played || 0, wins: v.wins || 0, bestMs: v.bestMs || null };
+            } else {
+              u.stats.games[k].played = Math.max(u.stats.games[k].played || 0, v.played || 0);
+              u.stats.games[k].wins = Math.max(u.stats.games[k].wins || 0, v.wins || 0);
+              if (v.bestMs) {
+                u.stats.games[k].bestMs = u.stats.games[k].bestMs ? Math.min(u.stats.games[k].bestMs, v.bestMs) : v.bestMs;
               }
             }
           }
-          this.save(data);
-          return this.sanitize(u);
         }
+        this.save(data);
+        return this.sanitize(u);
       }
-      return null;
     }
-
-    getLeaderboard(sortBy = 'wins', limit = 25) {
-      const data = this.load();
-      const list = Object.values(data.users).map(u => {
-        const played = u.stats?.totalPlayed || 0;
-        const wins = u.stats?.totalWins || 0;
-        const rate = played > 0 ? Math.round((wins / played) * 100) : 0;
-        return {
-          id: u.id,
-          username: u.username,
-          totalWins: wins,
-          totalPlayed: played,
-          bestReactionMs: u.stats?.bestReactionMs || null,
-          winRate: rate
-        };
-      });
-
-      if (sortBy === 'reaction') {
-        list.sort((a, b) => {
-          if (a.bestReactionMs === null && b.bestReactionMs === null) return b.totalWins - a.totalWins;
-          if (a.bestReactionMs === null) return 1;
-          if (b.bestReactionMs === null) return -1;
-          return a.bestReactionMs - b.bestReactionMs;
-        });
-      } else if (sortBy === 'played') {
-        list.sort((a, b) => {
-          if (b.totalPlayed !== a.totalPlayed) return b.totalPlayed - a.totalPlayed;
-          return b.totalWins - a.totalWins;
-        });
-      } else {
-        list.sort((a, b) => {
-          if (b.totalWins !== a.totalWins) return b.totalWins - a.totalWins;
-          return b.winRate - a.winRate;
-        });
-      }
-
-      return list.slice(0, limit).map((p, i) => ({ rank: i + 1, ...p }));
-    }
-
-    saveSession(user, token, allowCookies) {
-      const sessionObj = { user, token };
-      try {
-        localStorage.setItem(this.sessionKey, JSON.stringify(sessionObj));
-        sessionStorage.setItem('randoo_session_token', token);
-        if (allowCookies) {
-          document.cookie = `randoo_session=${token}; Path=/; Max-Age=2592000; SameSite=Lax`;
-        }
-      } catch (e) {}
-    }
-
-    restoreSession() {
-      const raw = localStorage.getItem(this.sessionKey);
-      if (raw) {
-        try {
-          const sess = JSON.parse(raw);
-          if (sess && sess.user) {
-            const data = this.load();
-            for (const u of Object.values(data.users)) {
-              if (u.id === sess.user.id) return this.sanitize(u);
-            }
-            return sess.user;
-          }
-        } catch (e) {}
-      }
-      return null;
-    }
-
-    clearSession() {
-      try {
-        localStorage.removeItem(this.sessionKey);
-        sessionStorage.removeItem('randoo_session_token');
-        document.cookie = 'randoo_session=; Path=/; Max-Age=0; SameSite=Lax';
-      } catch (e) {}
-    }
-
-    sanitize(user) {
-      const copy = { ...user };
-      delete copy.passwordHash;
-      delete copy.salt;
-      return copy;
-    }
+    return null;
   }
 
+  getLeaderboard(sortBy = 'wins', limit = 25) {
+    const data = this.load();
+    const list = Object.values(data.users).map(u => {
+      const played = u.stats?.totalPlayed || 0;
+      const wins = u.stats?.totalWins || 0;
+      const rate = played > 0 ? Math.round((wins / played) * 100) : 0;
+      return {
+        id: u.id,
+        username: u.username,
+        totalWins: wins,
+        totalPlayed: played,
+        bestReactionMs: u.stats?.bestReactionMs || null,
+        winRate: rate
+      };
+    });
+
+    if (sortBy === 'reaction') {
+      list.sort((a, b) => {
+        if (a.bestReactionMs === null && b.bestReactionMs === null) return b.totalWins - a.totalWins;
+        if (a.bestReactionMs === null) return 1;
+        if (b.bestReactionMs === null) return -1;
+        return a.bestReactionMs - b.bestReactionMs;
+      });
+    } else if (sortBy === 'played') {
+      list.sort((a, b) => {
+        if (b.totalPlayed !== a.totalPlayed) return b.totalPlayed - a.totalPlayed;
+        return b.totalWins - a.totalWins;
+      });
+    } else {
+      list.sort((a, b) => {
+        if (b.totalWins !== a.totalWins) return b.totalWins - a.totalWins;
+        return b.winRate - a.winRate;
+      });
+    }
+
+    return list.slice(0, limit).map((p, i) => ({ rank: i + 1, ...p }));
+  }
+
+  saveSession(user, token, allowCookies) {
+    const sessionObj = { user, token };
+    try {
+      localStorage.setItem(this.sessionKey, JSON.stringify(sessionObj));
+      sessionStorage.setItem('randoo_session_token', token);
+      if (allowCookies) {
+        document.cookie = `randoo_session=${token}; Path=/; Max-Age=2592000; SameSite=Lax`;
+      }
+    } catch (e) {}
+  }
+
+  restoreSession() {
+    const raw = localStorage.getItem(this.sessionKey);
+    if (raw) {
+      try {
+        const sess = JSON.parse(raw);
+        if (sess && sess.user) {
+          const data = this.load();
+          for (const u of Object.values(data.users)) {
+            if (u.id === sess.user.id) return this.sanitize(u);
+          }
+          return sess.user;
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  clearSession() {
+    try {
+      localStorage.removeItem(this.sessionKey);
+      sessionStorage.removeItem('randoo_session_token');
+      document.cookie = 'randoo_session=; Path=/; Max-Age=0; SameSite=Lax';
+    } catch (e) {}
+  }
+
+  sanitize(user) {
+    const copy = { ...user };
+    delete copy.passwordHash;
+    delete copy.salt;
+    return copy;
+  }
+}
+
+// Main Hub Controller
+document.addEventListener('DOMContentLoaded', () => {
+  const audio = new ArcadeAudio();
   const vault = new ClientEncryptedVault();
+
+  // State
   let currentUser = null;
   let activeLbSort = 'wins';
+  let authMode = 'login';
+  let currentTheme = localStorage.getItem('randoo_theme') || 'dark';
 
-  // Header Elements
+  // Header & Theme Elements
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const themeIcon = document.getElementById('themeIcon');
+  const themeText = document.getElementById('themeText');
+  const soundToggleBtn = document.getElementById('soundToggleBtn');
+  const soundIcon = document.getElementById('soundIcon');
+  const resetStatsBtn = document.getElementById('resetStatsBtn');
+
+  // User Auth Elements
   const guestAuthActions = document.getElementById('guestAuthActions');
   const loginBtn = document.getElementById('loginBtn');
   const registerBtn = document.getElementById('registerBtn');
@@ -754,7 +542,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const dropStatReflex = document.getElementById('dropStatReflex');
   const logoutBtn = document.getElementById('logoutBtn');
 
-  // Modal Elements
+  // Stats Display Elements
+  const statTotalPlayed = document.getElementById('statTotalPlayed');
+  const statTotalWins = document.getElementById('statTotalWins');
+  const statBestReaction = document.getElementById('statBestReaction');
+  const statFavoriteGame = document.getElementById('statFavoriteGame');
+  const statCardRPS = document.querySelector('#statCardRPS span');
+  const statCardTTT = document.querySelector('#statCardTTT span');
+  const statCardGuess = document.querySelector('#statCardGuess span');
+  const statCardDice = document.querySelector('#statCardDice span');
+  const statCardHangman = document.querySelector('#statCardHangman span');
+  const statCardRTT = document.querySelector('#statCardRTT span');
+
+  // Filter & Search
+  const filterTabs = document.querySelectorAll('.filter-tab');
+  const searchInput = document.getElementById('gameSearch');
+  const gameCards = document.querySelectorAll('.game-card');
+  const noResultsMsg = document.getElementById('noResultsMsg');
+
+  // Auth Modal Elements
   const authModal = document.getElementById('authModal');
   const closeAuthModal = document.getElementById('closeAuthModal');
   const tabLogin = document.getElementById('tabLogin');
@@ -786,20 +592,85 @@ document.addEventListener('DOMContentLoaded', () => {
   const declineCookiesBtn = document.getElementById('declineCookiesBtn');
   const openCookieBannerBtn = document.getElementById('openCookieBannerBtn');
 
-  let authMode = 'login'; // 'login' or 'register'
+  // Animated Background Engine
+  let bgEngine = null;
+  const bgCanvas = document.getElementById('arcadeBgCanvas');
+  if (bgCanvas) {
+    bgEngine = new ArcadeBackgroundEngine(bgCanvas);
+    bgEngine.setTheme(currentTheme === 'dark');
+  }
 
-  // Network Fetch with Localhost Proxy Fallback
+  // Theme Functions
+  function applyTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('randoo_theme', theme);
+
+    if (themeIcon && themeText) {
+      if (theme === 'light') {
+        themeIcon.textContent = '☀️';
+        themeText.textContent = 'Light';
+        if (themeToggleBtn) themeToggleBtn.title = 'Switch to Dark Theme';
+      } else {
+        themeIcon.textContent = '🌙';
+        themeText.textContent = 'Dark';
+        if (themeToggleBtn) themeToggleBtn.title = 'Switch to Light Theme';
+      }
+    }
+    if (bgEngine) bgEngine.setTheme(theme === 'dark');
+  }
+  applyTheme(currentTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      applyTheme(nextTheme);
+      audio.playPop();
+    });
+  }
+
+  // Sound Engine UI
+  function updateSoundUI() {
+    if (!soundIcon || !soundToggleBtn) return;
+    if (audio.isMuted) {
+      soundIcon.textContent = '🔇';
+      soundToggleBtn.classList.add('muted');
+    } else {
+      soundIcon.textContent = '🔊';
+      soundToggleBtn.classList.remove('muted');
+    }
+  }
+  updateSoundUI();
+
+  if (soundToggleBtn) {
+    soundToggleBtn.addEventListener('click', () => {
+      const isMuted = audio.toggleMute();
+      updateSoundUI();
+      if (!isMuted) audio.playPop();
+    });
+  }
+
+  // Reset Stats Button
+  if (resetStatsBtn) {
+    resetStatsBtn.addEventListener('click', () => {
+      audio.playClick();
+      if (confirm('Are you sure you want to reset all arcade scores and play history?')) {
+        localStorage.removeItem(STATS_KEY);
+        renderStats();
+      }
+    });
+  }
+
+  // Network Fetch with fallback to port 8085
   async function apiFetch(endpoint, options = {}) {
     const isHttp = window.location.protocol === 'http:' || window.location.protocol === 'https:';
     if (!isHttp) throw new Error('Static/file context');
 
-    // 1. Try relative URL
     try {
       const res = await fetch(endpoint, options);
       if (res.ok) return await res.json();
     } catch (e) {}
 
-    // 2. If running on another dev port (e.g. 5500), try port 8085
     if (window.location.port !== '8085') {
       try {
         const res = await fetch('http://localhost:8085' + endpoint, options);
@@ -817,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return headers;
   }
 
-  // Update User Header UI
+  // Update Header UI for User State
   function updateUserUI() {
     if (currentUser) {
       if (guestAuthActions) guestAuthActions.classList.add('hidden');
@@ -844,32 +715,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Check Current Session (Local Vault + Server)
-  async function checkSession() {
-    // 1. Restore from client vault immediately
-    const localUser = vault.restoreSession();
-    if (localUser) {
-      currentUser = localUser;
-      syncLocalWithRemote(currentUser.stats);
-      updateUserUI();
-      renderStats();
-    }
+  // Sync Stats to Vault & Backend
+  async function syncStatsToBackend() {
+    if (!currentUser) return;
+    const local = getArcadeProfile();
+    vault.syncUserStats(currentUser.id, local);
 
-    // 2. Query server session if online
     try {
-      const data = await apiFetch('/api/me', {
+      await apiFetch('/api/stats', {
+        method: 'POST',
         headers: getAuthHeaders(),
-        credentials: 'include'
+        credentials: 'include',
+        body: JSON.stringify(local)
       });
-      if (data && data.ok && data.user) {
-        currentUser = data.user;
-        syncLocalWithRemote(currentUser.stats);
-        updateUserUI();
-        renderStats();
-      }
     } catch (e) {}
   }
 
+  // Sync remote stats into local storage
   function syncLocalWithRemote(remoteStats) {
     if (!remoteStats) return;
     const local = getArcadeProfile();
@@ -903,21 +765,90 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // Sync stats to vault and server
-  async function syncStatsToBackend() {
-    if (!currentUser) return;
-    const local = getArcadeProfile();
-    // 1. Sync to local encrypted vault
-    vault.syncUserStats(currentUser.id, local);
+  // Render Stats
+  function renderStats() {
+    const profile = getArcadeProfile();
 
-    // 2. Sync to server if online
+    let totalPlayed = profile.totalPlayed || 0;
+    let totalWins = profile.totalWins || 0;
+
+    if (profile.games) {
+      const g = profile.games;
+      let calculatedPlayed = (g.rps?.played || 0) + (g.ttt?.played || 0) + (g.guess?.played || 0) + 
+                             (g.dice?.played || 0) + (g.hangman?.played || 0) + (g.rtt?.played || 0);
+      let calculatedWins = (g.rps?.wins || 0) + (g.ttt?.wins || 0) + (g.guess?.wins || 0) + 
+                           (g.dice?.wins || 0) + (g.hangman?.wins || 0);
+
+      totalPlayed = Math.max(totalPlayed, calculatedPlayed);
+      totalWins = Math.max(totalWins, calculatedWins);
+
+      if (statCardRPS) statCardRPS.textContent = g.rps?.played || 0;
+      if (statCardTTT) statCardTTT.textContent = g.ttt?.played || 0;
+      if (statCardGuess) statCardGuess.textContent = g.guess?.played || 0;
+      if (statCardDice) statCardDice.textContent = g.dice?.played || 0;
+      if (statCardHangman) statCardHangman.textContent = g.hangman?.played || 0;
+
+      const rttBest = profile.games?.rtt?.bestMs || profile.bestReactionMs;
+      if (statCardRTT) {
+        statCardRTT.textContent = rttBest ? `${Math.round(rttBest)} ms` : '--';
+      }
+      if (statBestReaction) {
+        statBestReaction.textContent = rttBest ? `${Math.round(rttBest)}` : '--';
+      }
+
+      const gameNames = {
+        rps: 'Rock Paper Scissors',
+        ttt: 'Tic-Tac-Toe',
+        guess: 'Number Guesser',
+        dice: 'Roll The Dice',
+        hangman: 'Hangman Quest',
+        rtt: 'Reaction Time Test'
+      };
+
+      let maxPlayed = 0;
+      let topGame = totalPlayed > 0 ? 'Rock Paper Scissors' : '--';
+      for (const [key, val] of Object.entries(g)) {
+        if (val.played > maxPlayed) {
+          maxPlayed = val.played;
+          topGame = gameNames[key] || topGame;
+        }
+      }
+      if (statFavoriteGame) statFavoriteGame.textContent = topGame;
+    }
+
+    if (statTotalPlayed) statTotalPlayed.textContent = totalPlayed;
+    if (statTotalWins) statTotalWins.textContent = totalWins;
+
+    if (currentUser) {
+      if (dropStatWins) dropStatWins.textContent = totalWins;
+      if (dropStatPlayed) dropStatPlayed.textContent = totalPlayed;
+      const reflex = profile.games?.rtt?.bestMs || profile.bestReactionMs;
+      if (dropStatReflex) dropStatReflex.textContent = reflex ? `${Math.round(reflex)}ms` : '--';
+      syncStatsToBackend();
+    }
+  }
+
+  // Session Check
+  async function checkSession() {
+    const localUser = vault.restoreSession();
+    if (localUser) {
+      currentUser = localUser;
+      syncLocalWithRemote(currentUser.stats);
+      updateUserUI();
+      renderStats();
+    }
+
     try {
-      await apiFetch('/api/stats', {
-        method: 'POST',
+      const data = await apiFetch('/api/me', {
         headers: getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify(local)
+        credentials: 'include'
       });
+      if (data && data.ok && data.user) {
+        currentUser = data.user;
+        syncLocalWithRemote(currentUser.stats);
+        updateUserUI();
+        renderStats();
+      }
     } catch (e) {}
   }
 
@@ -1014,7 +945,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authModal) authModal.classList.add('hidden');
   }
 
-  // Header Button Actions
+  // Wire Header Auth Buttons
   if (loginBtn) {
     loginBtn.addEventListener('click', () => openAuth('login'));
   }
@@ -1065,7 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Auth Form Submission
+  // Auth Form Submit
   if (authForm) {
     authForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1105,7 +1036,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       let authResult = null;
 
-      // 1. Attempt API server
       try {
         const endpoint = authMode === 'register' ? '/api/register' : '/api/login';
         const payload = authMode === 'register'
@@ -1123,10 +1053,9 @@ document.addEventListener('DOMContentLoaded', () => {
           authResult = data;
         }
       } catch (networkErr) {
-        // Fallback to local encrypted vault
+        // Fallback to client vault
       }
 
-      // 2. Fallback to client encrypted vault if server was not reachable
       if (!authResult) {
         try {
           if (authMode === 'register') {
@@ -1144,7 +1073,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // 3. Process Successful Authentication
       if (authResult && authResult.user) {
         currentUser = authResult.user;
         vault.saveSession(currentUser, authResult.token, allowCookies);
@@ -1153,7 +1081,6 @@ document.addEventListener('DOMContentLoaded', () => {
         authSuccessMsg.classList.remove('hidden');
         audio.playPop();
 
-        // Sync local stats to user account
         await syncStatsToBackend();
         syncLocalWithRemote(currentUser.stats);
         updateUserUI();
@@ -1189,25 +1116,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ==========================================
-  // PUBLIC LEADERBOARD SYSTEM
-  // ==========================================
+  // Leaderboard System
   async function fetchLeaderboard(sort = 'wins') {
     activeLbSort = sort;
 
-    // STEP 1: IMMEDIATELY render from local vault (0ms latency, never empty!)
     const localLeaderboard = vault.getLeaderboard(sort);
     renderLeaderboardRows(localLeaderboard);
 
-    // STEP 2: In parallel, fetch latest from server if online
     try {
       const data = await apiFetch(`/api/leaderboard?sort=${sort}&limit=25`);
       if (data && data.ok && Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
         renderLeaderboardRows(data.leaderboard);
       }
-    } catch (e) {
-      // Local vault is already displayed
-    }
+    } catch (e) {}
   }
 
   function renderLeaderboardRows(players) {
@@ -1266,6 +1187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // Wire Leaderboard Tabs
   lbTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       audio.playPop();
@@ -1287,8 +1209,73 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Initialize Auth, Cookies & Leaderboard
+  // Filter Tabs & Search
+  function applyFilters() {
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    let visibleCount = 0;
+
+    gameCards.forEach(card => {
+      const categories = card.getAttribute('data-category').toLowerCase();
+      const text = card.textContent.toLowerCase();
+
+      const matchesCategory = (activeFilter === 'all') || categories.includes(activeFilter);
+      const matchesSearch = query === '' || text.includes(query);
+
+      if (matchesCategory && matchesSearch) {
+        card.classList.remove('hidden');
+        visibleCount++;
+      } else {
+        card.classList.add('hidden');
+      }
+    });
+
+    if (noResultsMsg) {
+      if (visibleCount === 0) {
+        noResultsMsg.classList.remove('hidden');
+      } else {
+        noResultsMsg.classList.add('hidden');
+      }
+    }
+  }
+
+  let activeFilter = 'all';
+  filterTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      audio.playPop();
+      filterTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeFilter = tab.getAttribute('data-category');
+      applyFilters();
+    });
+  });
+
+  if (searchInput) {
+    searchInput.addEventListener('input', applyFilters);
+  }
+
+  // Card & Button Sounds
+  document.querySelectorAll('.play-btn, .card-media, .action-btn, .filter-tab').forEach(btn => {
+    btn.addEventListener('mouseenter', () => audio.playPop());
+  });
+  document.querySelectorAll('.play-btn, .card-media').forEach(btn => {
+    btn.addEventListener('click', () => audio.playClick());
+  });
+
+  // Re-check stats on page focus/return
+  window.addEventListener('pageshow', () => {
+    renderStats();
+    fetchLeaderboard(activeLbSort);
+  });
+  window.addEventListener('focus', () => {
+    renderStats();
+    fetchLeaderboard(activeLbSort);
+  });
+  window.addEventListener('storage', renderStats);
+
+  // Initialize Systems
   initCookieConsent();
   checkSession();
+  renderStats();
   fetchLeaderboard('wins');
 });
+
