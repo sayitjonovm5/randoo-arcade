@@ -107,6 +107,8 @@ async function handleApiRequest(req, res) {
     parsedUrl = { pathname: req.url, query: {} };
   }
 
+  const rawPath = decodeURIComponent(parsedUrl.pathname || '');
+
   // 1. Extract path from Vercel rewrite query parameter (e.g. ?path=leaderboard)
   let subRoute = '';
   if (parsedUrl.query && (parsedUrl.query.path || parsedUrl.query.route)) {
@@ -116,13 +118,23 @@ async function handleApiRequest(req, res) {
   // 2. Or from Vercel x-matched-path header
   const matchedHeader = req.headers && (req.headers['x-matched-path'] || req.headers['x-now-route-matches']);
 
+  // Immediately check if this request is targeted at the API
+  const isTargetingApi = subRoute.length > 0 ||
+    rawPath.startsWith('/api/') ||
+    rawPath === '/api' ||
+    (matchedHeader && (matchedHeader.startsWith('/api/') || matchedHeader === '/api'));
+
+  if (!isTargetingApi) {
+    return false;
+  }
+
   let apiPath = '';
   if (subRoute) {
     apiPath = '/api/' + subRoute;
   } else if (matchedHeader && !matchedHeader.includes('/api/index.js')) {
     apiPath = matchedHeader.split('?')[0];
   } else {
-    apiPath = decodeURIComponent(parsedUrl.pathname || '');
+    apiPath = rawPath;
   }
 
   // Strip query string and index.js if present
@@ -149,12 +161,6 @@ async function handleApiRequest(req, res) {
     });
     res.end();
     return true;
-  }
-
-  // Check if route belongs to API
-  const isApiRoute = apiPath.startsWith('/api');
-  if (!isApiRoute) {
-    return false;
   }
 
   // 1. GET /api/health
